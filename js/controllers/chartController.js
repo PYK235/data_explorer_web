@@ -47,27 +47,27 @@ export function renderMetrics(state, els) {
 
 // ================= COMPARE BOARDS =================
 export function renderCompareBoards(state, els) {
-  const data = state.points || state.filteredRows;
+  const data = state.filteredRows || state.rows;
 
   renderScatter(
     els.compareKmeans,
     data,
-    state.labels,
+    state.kmeansLabels || state.labels,
     "kmeans",
-    state.centroids
+    state.kmeansCentroids
   );
 
   renderScatter(
     els.compareDbscan,
     data,
-    state.labels,
+    state.dbscanLabels || state.labels,
     "dbscan"
   );
 
   renderScatter(
     els.compareHierarchical,
     data,
-    state.labels,
+    state.hierarchicalLabels || state.labels,
     "hierarchical"
   );
 }

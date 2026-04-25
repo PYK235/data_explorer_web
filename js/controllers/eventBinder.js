@@ -29,9 +29,12 @@ export function bindEvents(state, els, refreshAll) {
      }
 
       updateClusterLabel(state, els);
-      renderMetrics(state, els);
-      updateAlgorithmButtons(state);
-      rerenderMainScatter(state, els);
+  renderMetrics(state, els);
+  updateAlgorithmButtons(state);
+
+  await runAllCompare(state);
+  rerenderMainScatter(state, els);
+  renderCompareBoards(state, els);
     });
   });
 
@@ -45,8 +48,10 @@ export function bindEvents(state, els, refreshAll) {
       await runHierarchicalAlgo(state);
     }
 
-    renderMetrics(state, els);
-    rerenderMainScatter(state, els);
+    await runAllCompare(state);
+  renderMetrics(state, els);
+  rerenderMainScatter(state, els);
+  renderCompareBoards(state, els);
   });
 
   // ===== SLIDER K =====
@@ -60,7 +65,7 @@ export function bindEvents(state, els, refreshAll) {
     } else if (state.algorithm === "hierarchical") {
       await runHierarchicalAlgo(state);
     }
-
+    await runAllCompare(state);
     rerenderMainScatter(state, els);
     renderMetrics(state, els);
     renderCompareBoards(state, els);
@@ -76,6 +81,8 @@ export function bindEvents(state, els, refreshAll) {
       await runHierarchicalAlgo(state);
     }
 
+    await runAllCompare(state);
+    renderCompareBoards(state, els);
     renderMetrics(state, els);
     rerenderMainScatter(state, els);
   });
@@ -112,6 +119,7 @@ export function bindEvents(state, els, refreshAll) {
      } else if (state.algorithm === "hierarchical") {
        await runHierarchicalAlgo(state);
      }
+      await runAllCompare(state);
       refreshAll();
       return;
     }
@@ -128,17 +136,35 @@ export function bindEvents(state, els, refreshAll) {
     } else if (state.algorithm === "hierarchical") {
       await runHierarchicalAlgo(state);
     }
+    await runAllCompare(state);
     refreshAll();
   });
 }
 
 // ===== HELPER =====
 async function runKMeans(state) {
-  if (state.algorithm !== "kmeans") return;
-  if (!state.rows?.length) return;
+  const rawData = state.filteredRows || state.rows;
+  if (!rawData?.length) return;
+
   state.points = null;
+
+  const data = rawData.map(row => {
+    if (Array.isArray(row)) {
+      return row.map(Number).filter(v => !isNaN(v));
+    }
+
+    return Object.values(row)
+      .map(Number)
+      .filter(v => !isNaN(v));
+  });
+
+  // bỏ dòng rỗng
+  const cleanData = data.filter(row => row.length >= 2);
+
+  if (cleanData.length < 2) return;
+
   const res = await fetchClusteringResults({
-    data: state.rows,
+    data: cleanData,
     k: state.clusterK
   });
 
@@ -146,6 +172,7 @@ async function runKMeans(state) {
     state.labels = res.result.labels;
     state.centroids = res.result.centroids;
     state.silhouette = res.result.silhouette;
+    state.davies = undefined;
   }
 }
 async function runHierarchicalAlgo(state) {
@@ -174,5 +201,59 @@ async function runHierarchicalAlgo(state) {
     state.silhouette = res.result.silhouette;
     state.davies = res.result.davies_bouldin;
     state.points = res.result.points;
+  }
+}
+async function runAllCompare(state) {
+  await runKMeansCompare(state);
+  await runHierarchicalCompare(state);
+}
+async function runKMeansCompare(state) {
+  const rawData = state.filteredRows || state.rows;
+  if (!rawData?.length) return;
+
+  const data = rawData.map(row => {
+    if (Array.isArray(row)) {
+      return row.map(Number).filter(v => !isNaN(v));
+    }
+
+    return Object.values(row)
+      .map(Number)
+      .filter(v => !isNaN(v));
+  });
+
+  const cleanData = data.filter(row => row.length >= 2);
+
+  if (cleanData.length < 2) return;
+
+  const res = await fetchClusteringResults({
+    data: cleanData,
+    k: state.clusterK
+  });
+
+  if (res.ok) {
+    state.kmeansLabels = res.result.labels;
+    state.kmeansCentroids = res.result.centroids;
+  }
+}
+async function runHierarchicalCompare(state) {
+  const rawData = state.filteredRows || state.rows;
+  if (!rawData?.length) return;
+
+  const inputData = rawData.map(row => {
+    if (Array.isArray(row)) return row.map(Number);
+
+    return Object.values(row)
+      .filter(v => !isNaN(v))
+      .map(Number);
+  });
+
+  const res = await runHierarchical(
+    inputData,
+    state.clusterK,
+    "ward"
+  );
+
+  if (res.ok) {
+    state.hierarchicalLabels = res.result.labels;
   }
 }
