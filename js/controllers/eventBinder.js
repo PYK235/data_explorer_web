@@ -5,6 +5,7 @@ import { resetToSampleData } from "../state/appState.js";
 import { readCsvFile } from "../services/fileParser.js";
 import { uploadDatasetToBackend, fetchClusteringResults } from "../services/api.js";
 import { syncControls, updateClusterLabel, updateAlgorithmButtons } from "./uiController.js";
+import { runHierarchical } from "../services/api.js";
 
 export function bindEvents(state, els, refreshAll) {
 
@@ -21,7 +22,11 @@ export function bindEvents(state, els, refreshAll) {
     btn.addEventListener("click", async () => {
       state.algorithm = btn.dataset.algoCard;
 
-      await runKMeans(state);
+     if (state.algorithm === "kmeans") {
+       await runKMeans(state);
+     } else if (state.algorithm === "hierarchical") {
+       await runHierarchicalAlgo(state);
+     }
 
       updateClusterLabel(state, els);
       renderMetrics(state, els);
@@ -34,7 +39,11 @@ export function bindEvents(state, els, refreshAll) {
   els.algorithmSelect.addEventListener("change", async (e) => {
     state.algorithm = e.target.value;
 
-    await runKMeans(state);
+    if (state.algorithm === "kmeans") {
+      await runKMeans(state);
+    } else if (state.algorithm === "hierarchical") {
+      await runHierarchicalAlgo(state);
+    }
 
     renderMetrics(state, els);
     rerenderMainScatter(state, els);
@@ -46,15 +55,28 @@ export function bindEvents(state, els, refreshAll) {
 
     updateClusterLabel(state, els);
 
-    await runKMeans(state);
+    if (state.algorithm === "kmeans") {
+      await runKMeans(state);
+    } else if (state.algorithm === "hierarchical") {
+      await runHierarchicalAlgo(state);
+    }
 
     rerenderMainScatter(state, els);
+    renderMetrics(state, els);
     renderCompareBoards(state, els);
   });
 
   // ===== FILTER =====
-  els.filterSelect.addEventListener("change", () => {
+  els.filterSelect.addEventListener("change", async () => {
     state.filteredRows = applyFilter(state);
+
+    if (state.algorithm === "kmeans") {
+      await runKMeans(state);
+    } else if (state.algorithm === "hierarchical") {
+      await runHierarchicalAlgo(state);
+    }
+
+    renderMetrics(state, els);
     rerenderMainScatter(state, els);
   });
 
@@ -79,11 +101,17 @@ export function bindEvents(state, els, refreshAll) {
 
       if (res.ok) {
         state.rows = res.data.data;
+        state.filteredRows = state.rows;
+        state.points = null;
       } else {
         state.rows = [...defaultDataset];
       }
 
-      await runKMeans(state);
+     if (state.algorithm === "kmeans") {
+       await runKMeans(state);
+     } else if (state.algorithm === "hierarchical") {
+       await runHierarchicalAlgo(state);
+     }
       refreshAll();
       return;
     }
@@ -95,7 +123,11 @@ export function bindEvents(state, els, refreshAll) {
       state.rows = [...defaultDataset];
     }
 
-    await runKMeans(state);
+    if (state.algorithm === "kmeans") {
+      await runKMeans(state);
+    } else if (state.algorithm === "hierarchical") {
+      await runHierarchicalAlgo(state);
+    }
     refreshAll();
   });
 }
@@ -104,7 +136,7 @@ export function bindEvents(state, els, refreshAll) {
 async function runKMeans(state) {
   if (state.algorithm !== "kmeans") return;
   if (!state.rows?.length) return;
-
+  state.points = null;
   const res = await fetchClusteringResults({
     data: state.rows,
     k: state.clusterK
@@ -114,5 +146,33 @@ async function runKMeans(state) {
     state.labels = res.result.labels;
     state.centroids = res.result.centroids;
     state.silhouette = res.result.silhouette;
+  }
+}
+async function runHierarchicalAlgo(state) {
+  if (!state.rows?.length) return;
+
+  state.centroids = null;
+
+  const rawData = state.filteredRows || state.rows;
+
+  const inputData = rawData.map(row => {
+    if (Array.isArray(row)) return row.map(Number);
+    
+    return Object.values(row)
+      .filter(v => !isNaN(v))
+      .map(Number);
+  });
+
+  const res = await runHierarchical(
+    inputData,
+    state.clusterK,
+    state.linkage || "ward"
+  );
+
+  if (res.ok) {
+    state.labels = res.result.labels;
+    state.silhouette = res.result.silhouette;
+    state.davies = res.result.davies_bouldin;
+    state.points = res.result.points;
   }
 }

@@ -43,6 +43,7 @@ export async function fetchClusteringResults(payload) {
       }),
     });
 
+    if (!res.ok) throw new Error("Server error");
     const result = await res.json();
 
     return {
@@ -54,5 +55,36 @@ export async function fetchClusteringResults(payload) {
       ok: false,
       message: err.message,
     };
+  }
+}
+export async function runHierarchical(data, k, linkage = "ward") {
+  try {
+    const res = await fetch("http://127.0.0.1:5000/hierarchical", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        data,
+        n_clusters: k,
+        linkage
+      })
+    });
+
+    if (!res.ok) throw new Error("Server error");
+    const result = await res.json();
+
+    console.log("Hierarchical:", result);
+
+    return {
+      ok: true,
+      result
+    };
+  } catch (err) {
+    console.error("Hierarchical error:", err);
+    return { 
+      ok: false,
+      message: err.message
+   };
   }
 }

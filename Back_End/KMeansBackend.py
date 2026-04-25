@@ -1,4 +1,5 @@
 from flask import Flask, request, jsonify
+from flask import Blueprint
 from flask_cors import CORS
 import pandas as pd
 import numpy as np
@@ -7,10 +8,7 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.cluster import KMeans
 from sklearn.metrics import silhouette_score
 
-app = Flask(__name__)
-CORS(app)
-
-
+kmeans_bp = Blueprint("kmeans_bp", __name__)
 # =========================
 # Utils
 # =========================
@@ -54,7 +52,7 @@ def _scale(X):
 # =========================
 # Upload + xử lý
 # =========================
-@app.route("/upload", methods=["POST"])
+@kmeans_bp.route("/upload", methods=["POST"])
 def upload():
     file = request.files.get("file")
 
@@ -80,7 +78,7 @@ def upload():
 # =========================
 # KMeans
 # =========================
-@app.route("/kmeans", methods=["POST"])
+@kmeans_bp.route("/kmeans", methods=["POST"])
 def kmeans():
     body = request.get_json(silent=True) or {}
 
@@ -133,7 +131,7 @@ def kmeans():
 # =========================
 # Elbow Method
 # =========================
-@app.route("/elbow", methods=["POST"])
+@kmeans_bp.route("/elbow", methods=["POST"])
 def elbow():
     body = request.get_json(silent=True) or {}
     data = body.get("data")
@@ -168,13 +166,7 @@ def elbow():
 # =========================
 # Health check (debug nhanh)
 # =========================
-@app.route("/")
+@kmeans_bp.route("/")
 def index():
     return jsonify({"status": "Smart Data Explorer API running"})
 
-
-# =========================
-# RUN
-# =========================
-if __name__ == "__main__":
-    app.run(debug=True, port=5000)

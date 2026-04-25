@@ -16,11 +16,15 @@ export function renderMetrics(state, els) {
 
   // 👉 số cụm
   els.scoreClusters.textContent = state.clusterK;
-
+  els.scoreDavies.textContent =
+     state.davies !== undefined
+       ? Number(state.davies).toFixed(3)
+       : "-";
   // ===== SCATTER =====
+  const data = state.points || state.filteredRows;
   renderScatter(
     els.scatterPlot,
-    state.filteredRows,
+    data,
     state.labels,
     state.algorithm,
     state.centroids
@@ -43,9 +47,11 @@ export function renderMetrics(state, els) {
 
 // ================= COMPARE BOARDS =================
 export function renderCompareBoards(state, els) {
+  const data = state.points || state.filteredRows;
+
   renderScatter(
     els.compareKmeans,
-    state.filteredRows,
+    data,
     state.labels,
     "kmeans",
     state.centroids
@@ -53,14 +59,14 @@ export function renderCompareBoards(state, els) {
 
   renderScatter(
     els.compareDbscan,
-    state.filteredRows,
+    data,
     state.labels,
     "dbscan"
   );
 
   renderScatter(
     els.compareHierarchical,
-    state.filteredRows,
+    data,
     state.labels,
     "hierarchical"
   );
@@ -68,9 +74,11 @@ export function renderCompareBoards(state, els) {
 
 // ================= RERENDER MAIN =================
 export function rerenderMainScatter(state, els) {
+  const data = state.points || state.filteredRows;
+
   renderScatter(
     els.scatterPlot,
-    state.filteredRows,
+    data,
     state.labels,
     state.algorithm,
     state.centroids
