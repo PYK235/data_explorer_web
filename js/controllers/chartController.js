@@ -5,39 +5,61 @@ import { renderBars, renderScatter } from "../renderers/chartRenderer.js";
 export function renderMetrics(state, els) {
   const profile = algorithmProfiles[state.algorithm];
 
-  // ===== TEXT =====
   els.scatterTitle.textContent = profile.label;
 
-  // 👉 silhouette thật nếu có, không thì fallback
-  els.scoreSilhouette.textContent =
-    state.silhouette !== undefined
-      ? Number(state.silhouette).toFixed(3)
-      : profile.silhouette;
+  if (state.algorithm === "dbscan") {
+    els.scoreSilhouette.textContent =
+      state.dbscanSilhouette !== undefined
+        ? Number(state.dbscanSilhouette).toFixed(3)
+        : profile.silhouette;
 
-  // 👉 số cụm
-  els.scoreClusters.textContent = state.clusterK;
+    const n = state.dbscanClusters ?? "—";
+    const noise = state.dbscanNoise ?? 0;
+    els.scoreClusters.textContent = `${n} + ${noise} noise`;
 
-  // ===== SCATTER =====
-  renderScatter(
-    els.scatterPlot,
-    state.filteredRows,
-    state.labels,
-    state.algorithm,
-    state.centroids
-  );
+    renderScatter(
+      els.scatterPlot,
+      state.filteredRows,
+      state.dbscanLabels ?? [],
+      "dbscan",
+      state.dbscanPseudoCentroids ?? []
+    );
 
-  // ===== BAR CHART (REAL DATA) =====
-  if (state.labels && state.labels.length) {
-    const counts = {};
+    if (state.dbscanLabels?.length) {
+      const counts = {};
+      state.dbscanLabels.forEach(l => {
+        if (l !== -1) counts[l] = (counts[l] || 0) + 1;
+      });
+      renderBars(els.barChart, Object.values(counts));
+    } else {
+      renderBars(els.barChart, profile.bars);
+    }
 
-    state.labels.forEach((l) => {
-      counts[l] = (counts[l] || 0) + 1;
-    });
-
-    renderBars(els.barChart, Object.values(counts));
   } else {
-    // fallback khi chưa chạy KMeans
-    renderBars(els.barChart, profile.bars);
+    els.scoreSilhouette.textContent =
+      state.silhouette !== undefined
+        ? Number(state.silhouette).toFixed(3)
+        : profile.silhouette;
+
+    els.scoreClusters.textContent = state.algorithm === "kmeans"
+      ? String(state.clusterK)
+      : profile.clusters;
+
+    renderScatter(
+      els.scatterPlot,
+      state.filteredRows,
+      state.labels,
+      state.algorithm,
+      state.centroids
+    );
+
+    if (state.labels?.length) {
+      const counts = {};
+      state.labels.forEach(l => { counts[l] = (counts[l] || 0) + 1; });
+      renderBars(els.barChart, Object.values(counts));
+    } else {
+      renderBars(els.barChart, profile.bars);
+    }
   }
 }
 
@@ -46,33 +68,38 @@ export function renderCompareBoards(state, els) {
   renderScatter(
     els.compareKmeans,
     state.filteredRows,
-    state.labels,
+    state.algorithm === "kmeans" ? state.labels : [],
     "kmeans",
-    state.centroids
+    state.algorithm === "kmeans" ? state.centroids : []
   );
 
   renderScatter(
     els.compareDbscan,
     state.filteredRows,
-    state.labels,
+    state.algorithm === "dbscan" ? state.dbscanLabels : [],
     "dbscan"
   );
 
   renderScatter(
     els.compareHierarchical,
     state.filteredRows,
-    state.labels,
+    state.algorithm === "hierarchical" ? state.labels : [],
     "hierarchical"
   );
 }
 
 // ================= RERENDER MAIN =================
 export function rerenderMainScatter(state, els) {
+  const labels = state.algorithm === "dbscan" ? state.dbscanLabels : state.labels;
+  const centroids = state.algorithm === "dbscan"
+    ? (state.dbscanPseudoCentroids ?? [])
+    : (state.centroids ?? []);
+
   renderScatter(
     els.scatterPlot,
     state.filteredRows,
-    state.labels,
+    labels ?? [],
     state.algorithm,
-    state.centroids
+    centroids
   );
 }

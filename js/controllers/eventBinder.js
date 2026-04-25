@@ -3,8 +3,8 @@ import { applyFilter } from "./datasetController.js";
 import { renderMetrics, renderCompareBoards, rerenderMainScatter } from "./chartController.js";
 import { resetToSampleData } from "../state/appState.js";
 import { readCsvFile } from "../services/fileParser.js";
-import { uploadDatasetToBackend, fetchClusteringResults } from "../services/api.js";
-import { syncControls, updateClusterLabel, updateAlgorithmButtons } from "./uiController.js";
+import { uploadDatasetToBackend, fetchClusteringResults, fetchDbscanResults } from "../services/api.js";
+import { syncControls, updateClusterLabel, updateAlgorithmButtons, showDbscanControls, hideDbscanControls } from "./uiController.js";
 
 export function bindEvents(state, els, refreshAll) {
 
@@ -16,45 +16,75 @@ export function bindEvents(state, els, refreshAll) {
     });
   });
 
-  // ===== ALGORITHM =====
-  document.querySelectorAll(".algo-chip").forEach(btn => {
-    btn.addEventListener("click", async () => {
-      state.algorithm = btn.dataset.algoCard;
-
-      await runKMeans(state);
-
-      updateClusterLabel(state, els);
-      renderMetrics(state, els);
-      updateAlgorithmButtons(state);
-      rerenderMainScatter(state, els);
-    });
-  });
-
-  // ===== SELECT =====
+  // ===== DROPDOWN (nguồn chính) =====
   els.algorithmSelect.addEventListener("change", async (e) => {
     state.algorithm = e.target.value;
+    updateAlgorithmButtons(state);
 
-    await runKMeans(state);
+    if (state.algorithm === "dbscan") {
+      els.clusterRange.closest(".field").style.display = "none";
+      showDbscanControls(
+        state,
+        // callback khi eps thay đổi
+        async (val) => {
+          state.dbscanEps = val;
+          await runDbscan(state);
+          rerenderMainScatter(state, els);
+          renderMetrics(state, els);
+          renderCompareBoards(state, els);
+        },
+        // callback khi min_samples thay đổi
+        async (val) => {
+          state.dbscanMinSamples = val;
+          await runDbscan(state);
+          rerenderMainScatter(state, els);
+          renderMetrics(state, els);
+          renderCompareBoards(state, els);
+        }
+      );
+      await runDbscan(state);
+    } else {
+      hideDbscanControls();
+      els.clusterRange.closest(".field").style.display = "";
+      if (state.algorithm === "kmeans") await runKMeans(state);
+    }
 
+    updateClusterLabel(state, els);
     renderMetrics(state, els);
     rerenderMainScatter(state, els);
+    renderCompareBoards(state, els);
+  });
+
+  // ===== CHIP BUTTONS =====
+  document.querySelectorAll(".algo-chip").forEach(btn => {
+    btn.addEventListener("click", () => {
+      els.algorithmSelect.value = btn.dataset.algoCard;
+      els.algorithmSelect.dispatchEvent(new Event("change"));
+    });
   });
 
   // ===== SLIDER K =====
   els.clusterRange.addEventListener("input", async (e) => {
     state.clusterK = Number(e.target.value);
-
     updateClusterLabel(state, els);
+    if (state.algorithm === "kmeans") {
+      await runKMeans(state);
+      rerenderMainScatter(state, els);
+      renderCompareBoards(state, els);
+    }
+  });
 
-    await runKMeans(state);
-
-    rerenderMainScatter(state, els);
-    renderCompareBoards(state, els);
+  // ===== SLIDER DENDROGRAM =====
+  els.dendrogramRange.addEventListener("input", (e) => {
+    state.dendrogramCut = Number(e.target.value);
+    els.dendrogramValue.textContent = `${state.dendrogramCut}%`;
+    updateClusterLabel(state, els);
   });
 
   // ===== FILTER =====
   els.filterSelect.addEventListener("change", () => {
-    state.filteredRows = applyFilter(state);
+    state.filter = els.filterSelect.value;
+    applyFilter(state, els);
     rerenderMainScatter(state, els);
   });
 
@@ -71,48 +101,66 @@ export function bindEvents(state, els, refreshAll) {
   els.fileInput.addEventListener("change", async (e) => {
     const file = e.target.files[0];
     if (!file) return;
+    state.datasetName = file.name;
 
-     state.datasetName = file.name;
-     
     if (file.name.match(/\.(xlsx|xls)$/i)) {
       const res = await uploadDatasetToBackend(file);
-
-      if (res.ok) {
-        state.rows = res.data.data;
-      } else {
+      state.rows = res.ok ? res.data.data : [...defaultDataset];
+    } else {
+      try {
+        const rows = await readCsvFile(file);
+        state.rows = rows.length ? rows : [...defaultDataset];
+      } catch {
         state.rows = [...defaultDataset];
       }
-
-      await runKMeans(state);
-      refreshAll();
-      return;
     }
 
-    try {
-      const rows = await readCsvFile(file);
-      state.rows = rows.length ? rows : [...defaultDataset];
-    } catch {
-      state.rows = [...defaultDataset];
-    }
+    if (state.algorithm === "kmeans") await runKMeans(state);
+    else if (state.algorithm === "dbscan") await runDbscan(state);
 
-    await runKMeans(state);
     refreshAll();
   });
 }
 
-// ===== HELPER =====
-async function runKMeans(state) {
-  if (state.algorithm !== "kmeans") return;
-  if (!state.rows?.length) return;
+// =========================
+// Helper
+// =========================
+function getNumericPayload(rows) {
+  return rows.map(r => {
+    if (Array.isArray(r)) return [Number(r[0] || 0), Number(r[1] || 0)];
+    return [Number(r.income || 0), Number(r.spending || 0)];
+  });
+}
 
+async function runKMeans(state) {
+  if (!state.rows?.length) return;
   const res = await fetchClusteringResults({
-    data: state.rows,
+    data: getNumericPayload(state.rows),
     k: state.clusterK
   });
-
   if (res.ok) {
     state.labels = res.result.labels;
     state.centroids = res.result.centroids;
     state.silhouette = res.result.silhouette;
+  }
+}
+
+export async function runDbscan(state) {
+  if (!state.rows?.length) return;
+  const res = await fetchDbscanResults({
+    data: getNumericPayload(state.rows),
+    eps: state.dbscanEps,
+    min_samples: state.dbscanMinSamples,
+  });
+  if (res.ok) {
+    state.dbscanLabels          = res.result.labels;
+    state.dbscanClusters        = res.result.n_clusters;
+    state.dbscanNoise           = res.result.n_noise;
+    state.dbscanSilhouette      = res.result.silhouette;
+    state.dbscanCoreIndices     = res.result.core_indices;
+    state.dbscanPseudoCentroids = res.result.pseudo_centroids;
+    state.labels                = res.result.labels;
+    state.centroids             = res.result.pseudo_centroids;
+    state.silhouette            = res.result.silhouette;
   }
 }
