@@ -3,12 +3,26 @@ import { applyFilter } from "./datasetController.js";
 import { renderMetrics, renderCompareBoards, rerenderMainScatter } from "./chartController.js";
 import { resetToSampleData } from "../state/appState.js";
 import { readCsvFile } from "../services/fileParser.js";
-import { uploadDatasetToBackend, fetchClusteringResults } from "../services/api.js";
-import { syncControls, updateClusterLabel, updateAlgorithmButtons } from "./uiController.js";
+import {
+  uploadDatasetToBackend,
+  fetchClusteringResults,
+  fetchDbscanResults,
+  runHierarchical
+} from "../services/api.js";
 
+import {
+  syncControls,
+  updateClusterLabel,
+  updateAlgorithmButtons,
+  showDbscanControls,
+  hideDbscanControls,
+  updateDbscanNoiseCount
+} from "./uiController.js";
+
+// ================= MAIN =================
 export function bindEvents(state, els, refreshAll) {
 
-  // ===== NAV =====
+  // ================= NAV =================
   document.querySelectorAll(".nav-link").forEach(btn => {
     btn.addEventListener("click", () => {
       document.querySelectorAll(".nav-link").forEach(i => i.classList.remove("active"));
@@ -16,72 +30,78 @@ export function bindEvents(state, els, refreshAll) {
     });
   });
 
-  // ===== ALGORITHM =====
+  // ================= ALGO BUTTON =================
   document.querySelectorAll(".algo-chip").forEach(btn => {
     btn.addEventListener("click", async () => {
       state.algorithm = btn.dataset.algoCard;
 
-      await runKMeans(state);
+      els.algorithmSelect.value = state.algorithm;
+      updateAlgorithmButtons(state);
+
+      handleAlgorithmUI(state, els);
+
+      await runAlgorithm(state);
 
       updateClusterLabel(state, els);
       renderMetrics(state, els);
-      updateAlgorithmButtons(state);
       rerenderMainScatter(state, els);
     });
   });
 
-  // ===== SELECT =====
+  // ================= SELECT =================
   els.algorithmSelect.addEventListener("change", async (e) => {
     state.algorithm = e.target.value;
 
-    await runKMeans(state);
+    updateAlgorithmButtons(state);
 
+    handleAlgorithmUI(state, els);
+
+    await runAlgorithm(state);
+
+    updateClusterLabel(state, els);
     renderMetrics(state, els);
     rerenderMainScatter(state, els);
   });
 
-  // ===== SLIDER K =====
+  // ================= SLIDER K =================
   els.clusterRange.addEventListener("input", async (e) => {
     state.clusterK = Number(e.target.value);
+
     updateClusterLabel(state, els);
 
-    await runKMeans(state);
+    await runAlgorithm(state);
 
     rerenderMainScatter(state, els);
     renderCompareBoards(state, els);
   });
 
-  // ===== FILTER =====
+  // ================= FILTER =================
   els.filterSelect.addEventListener("change", () => {
     state.filteredRows = applyFilter(state);
     rerenderMainScatter(state, els);
   });
 
-  // ===== SAMPLE =====
+  // ================= SAMPLE =================
   els.sampleBtn.addEventListener("click", () => {
     resetToSampleData();
     refreshAll();
   });
 
-  // ===== REFRESH =====
+  // ================= REFRESH =================
   els.refreshBtn.addEventListener("click", refreshAll);
 
-  // ===== FILE UPLOAD =====
+  // ================= FILE UPLOAD =================
   els.fileInput.addEventListener("change", async (e) => {
     const file = e.target.files[0];
     if (!file) return;
+
     state.datasetName = file.name;
 
     if (file.name.match(/\.(xlsx|xls)$/i)) {
       const res = await uploadDatasetToBackend(file);
+      state.rows = res.ok ? res.data.data : [...defaultDataset];
 
-      if (res.ok) {
-        state.rows = res.data.data;
-      } else {
-        state.rows = [...defaultDataset];
-      }
-
-      await runKMeans(state);
+      await runAlgorithm(state);
       refreshAll();
       return;
     }
@@ -93,14 +113,50 @@ export function bindEvents(state, els, refreshAll) {
       state.rows = [...defaultDataset];
     }
 
-    await runKMeans(state);
+    await runAlgorithm(state);
     refreshAll();
   });
 }
 
-// =========================
-// Helper
-// =========================
+// ================= UI CONTROL =================
+function handleAlgorithmUI(state, els) {
+  if (state.algorithm === "dbscan") {
+    showDbscanControls(
+      state,
+      async () => {
+        await runAlgorithm(state);
+        renderMetrics(state, els);
+        updateDbscanNoiseCount(state.dbscanNoise);
+      },
+      async () => {
+        await runAlgorithm(state);
+        renderMetrics(state, els);
+        updateDbscanNoiseCount(state.dbscanNoise);
+      }
+    );
+  } else {
+    hideDbscanControls();
+  }
+}
+
+// ================= CORE =================
+async function runAlgorithm(state) {
+  if (!state.rows?.length) return;
+
+  console.log("Running:", state.algorithm);
+
+  if (state.algorithm === "kmeans") {
+    await runKMeans(state);
+  } 
+  else if (state.algorithm === "dbscan") {
+    await runDbscan(state);
+  } 
+  else if (state.algorithm === "hierarchical") {
+    await runHierarchicalAlgo(state);
+  }
+}
+
+// ================= HELPERS =================
 function getNumericPayload(rows) {
   return rows.map(r => {
     if (Array.isArray(r)) return [Number(r[0] || 0), Number(r[1] || 0)];
@@ -108,34 +164,49 @@ function getNumericPayload(rows) {
   });
 }
 
+// ================= KMEANS =================
 async function runKMeans(state) {
-  if (state.algorithm !== "kmeans") return;
-  if (!state.rows?.length) return;
-
   const res = await fetchClusteringResults({
     data: state.rows,
     k: state.clusterK
   });
+
   if (res.ok) {
     state.labels = res.result.labels;
     state.centroids = res.result.centroids;
     state.silhouette = res.result.silhouette;
-    state.davies = undefined;
+    state.davies = res.result.davies_bouldin;
   }
 }
+
+// ================= DBSCAN =================
+async function runDbscan(state) {
+  const res = await fetchDbscanResults({
+    data: getNumericPayload(state.rows),
+    eps: state.dbscanEps,
+    min_samples: state.dbscanMinSamples,
+  });
+
+  if (res.ok) {
+    state.dbscanLabels = res.result.labels;
+    state.dbscanClusters = res.result.n_clusters;
+    state.dbscanNoise = res.result.n_noise;
+    state.dbscanSilhouette = res.result.silhouette;
+    state.dbscanPseudoCentroids = res.result.pseudo_centroids;
+
+    // unify
+    state.labels = res.result.labels;
+    state.centroids = res.result.pseudo_centroids;
+  }
+}
+
+// ================= HIERARCHICAL =================
 async function runHierarchicalAlgo(state) {
-  if (!state.rows?.length) return;
-
-  state.centroids = null;
-
   const rawData = state.filteredRows || state.rows;
 
   const inputData = rawData.map(row => {
     if (Array.isArray(row)) return row.map(Number);
-    
-    return Object.values(row)
-      .filter(v => !isNaN(v))
-      .map(Number);
+    return Object.values(row).filter(v => !isNaN(v)).map(Number);
   });
 
   const res = await runHierarchical(
@@ -149,79 +220,5 @@ async function runHierarchicalAlgo(state) {
     state.silhouette = res.result.silhouette;
     state.davies = res.result.davies_bouldin;
     state.points = res.result.points;
-  }
-}
-async function runAllCompare(state) {
-  await runKMeansCompare(state);
-  await runHierarchicalCompare(state);
-}
-async function runKMeansCompare(state) {
-  const rawData = state.filteredRows || state.rows;
-  if (!rawData?.length) return;
-
-  const data = rawData.map(row => {
-    if (Array.isArray(row)) {
-      return row.map(Number).filter(v => !isNaN(v));
-    }
-
-    return Object.values(row)
-      .map(Number)
-      .filter(v => !isNaN(v));
-  });
-
-  const cleanData = data.filter(row => row.length >= 2);
-
-  if (cleanData.length < 2) return;
-
-  const res = await fetchClusteringResults({
-    data: cleanData,
-    k: state.clusterK
-  });
-
-  if (res.ok) {
-    state.kmeansLabels = res.result.labels;
-    state.kmeansCentroids = res.result.centroids;
-  }
-}
-async function runHierarchicalCompare(state) {
-  const rawData = state.filteredRows || state.rows;
-  if (!rawData?.length) return;
-
-  const inputData = rawData.map(row => {
-    if (Array.isArray(row)) return row.map(Number);
-
-    return Object.values(row)
-      .filter(v => !isNaN(v))
-      .map(Number);
-  });
-
-  const res = await runHierarchical(
-    inputData,
-    state.clusterK,
-    "ward"
-  );
-
-  if (res.ok) {
-    state.hierarchicalLabels = res.result.labels;
-  }
-}
-
-export async function runDbscan(state) {
-  if (!state.rows?.length) return;
-  const res = await fetchDbscanResults({
-    data: getNumericPayload(state.rows),
-    eps: state.dbscanEps,
-    min_samples: state.dbscanMinSamples,
-  });
-  if (res.ok) {
-    state.dbscanLabels          = res.result.labels;
-    state.dbscanClusters        = res.result.n_clusters;
-    state.dbscanNoise           = res.result.n_noise;
-    state.dbscanSilhouette      = res.result.silhouette;
-    state.dbscanCoreIndices     = res.result.core_indices;
-    state.dbscanPseudoCentroids = res.result.pseudo_centroids;
-    state.labels                = res.result.labels;
-    state.centroids             = res.result.pseudo_centroids;
-    state.silhouette            = res.result.silhouette;
   }
 }

@@ -9,6 +9,7 @@ from sklearn.cluster import KMeans
 from sklearn.metrics import silhouette_score
 
 kmeans_bp = Blueprint("kmeans_bp", __name__)
+
 # =========================
 # Utils
 # =========================
@@ -34,19 +35,12 @@ def _select_numeric(df):
     if X.shape[1] < 2:
         raise ValueError("Cần ít nhất 2 cột số")
 
-    # loại NaN đơn giản
     X = X.dropna()
 
     if X.shape[0] < 2:
         raise ValueError("Không đủ dữ liệu sau khi loại NaN")
 
     return X
-
-
-def _scale(X):
-    scaler = StandardScaler()
-    X_scaled = scaler.fit_transform(X)
-    return X_scaled
 
 
 # =========================
@@ -62,10 +56,9 @@ def upload():
     try:
         df = _read_file(file)
         X = _select_numeric(df)
-        X_scaled = _scale(X)
 
         return jsonify({
-            "data": X_scaled.tolist(),
+            "data": X.values.tolist(),   
             "columns": X.columns.tolist(),
             "n_rows": int(X.shape[0]),
             "n_cols": int(X.shape[1])
@@ -102,23 +95,32 @@ def kmeans():
         k = X.shape[0]
 
     try:
+        scaler = StandardScaler()
+        X_scaled = scaler.fit_transform(X)
+
+        # 🔥 TRAIN TRÊN DATA SCALE
         model = KMeans(n_clusters=k, random_state=42, n_init=10)
-        labels = model.fit_predict(X)
-        centroids = model.cluster_centers_
+        labels = model.fit_predict(X_scaled)
+
+        centroids_scaled = model.cluster_centers_
+        centroids = scaler.inverse_transform(centroids_scaled)
 
         # ===== silhouette =====
         try:
-            score = float(silhouette_score(X, labels))
+            score = float(silhouette_score(X_scaled, labels))
         except Exception:
             score = 0.0
 
         # ===== cluster counts =====
         unique, counts = np.unique(labels, return_counts=True)
-        cluster_counts = dict(zip(unique.astype(int).tolist(), counts.astype(int).tolist()))
+        cluster_counts = dict(zip(
+            unique.astype(int).tolist(),
+            counts.astype(int).tolist()
+        ))
 
         return jsonify({
             "labels": labels.tolist(),
-            "centroids": centroids.tolist(),
+            "centroids": centroids.tolist(),  
             "silhouette": score,
             "n_clusters": int(k),
             "cluster_counts": cluster_counts
@@ -145,13 +147,16 @@ def elbow():
         return jsonify({"error": "Data không hợp lệ"}), 400
 
     try:
+        scaler = StandardScaler()
+        X_scaled = scaler.fit_transform(X)
+
         max_k = min(10, X.shape[0])
         Ks = list(range(1, max_k + 1))
         inertia = []
 
         for k in Ks:
             model = KMeans(n_clusters=k, random_state=42, n_init=10)
-            model.fit(X)
+            model.fit(X_scaled)
             inertia.append(float(model.inertia_))
 
         return jsonify({
@@ -164,9 +169,8 @@ def elbow():
 
 
 # =========================
-# Health check (debug nhanh)
+# Health check
 # =========================
 @kmeans_bp.route("/")
 def index():
     return jsonify({"status": "Smart Data Explorer API running"})
-
