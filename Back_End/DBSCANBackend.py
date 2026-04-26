@@ -1,5 +1,4 @@
-from flask import Flask, request, jsonify
-from flask_cors import CORS
+from flask import Blueprint, request, jsonify
 import pandas as pd
 import numpy as np
 
@@ -7,8 +6,7 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.cluster import DBSCAN, KMeans
 from sklearn.metrics import silhouette_score
 
-app = Flask(__name__)
-CORS(app)
+dbscan_bp = Blueprint("dbscan_bp", __name__)
 
 
 def _read_file(file_storage):
@@ -34,7 +32,7 @@ def _select_numeric(df):
     return X
 
 
-@app.route("/upload", methods=["POST"])
+@dbscan_bp.route("/upload", methods=["POST"])
 def upload():
     file = request.files.get("file")
     if not file:
@@ -54,7 +52,7 @@ def upload():
         return jsonify({"error": str(e)}), 400
 
 
-@app.route("/kmeans", methods=["POST"])
+@dbscan_bp.route("/kmeans", methods=["POST"])
 def kmeans():
     body = request.get_json(silent=True) or {}
     data = body.get("data")
@@ -97,7 +95,7 @@ def kmeans():
         return jsonify({"error": str(e)}), 500
 
 
-@app.route("/elbow", methods=["POST"])
+@dbscan_bp.route("/elbow", methods=["POST"])
 def elbow():
     body = request.get_json(silent=True) or {}
     data = body.get("data")
@@ -121,7 +119,7 @@ def elbow():
         return jsonify({"error": str(e)}), 500
 
 
-@app.route("/dbscan", methods=["POST"])
+@dbscan_bp.route("/dbscan", methods=["POST"])
 def dbscan():
     body = request.get_json(silent=True) or {}
     data = body.get("data")
@@ -186,7 +184,7 @@ def dbscan():
         return jsonify({"error": str(e)}), 500
 
 
-@app.route("/dbscan/suggest-eps", methods=["POST"])
+@dbscan_bp.route("/dbscan/suggest-eps", methods=["POST"])
 def suggest_eps():
     body = request.get_json(silent=True) or {}
     data = body.get("data")
@@ -213,10 +211,6 @@ def suggest_eps():
         return jsonify({"error": str(e)}), 500
 
 
-@app.route("/")
+@dbscan_bp.route("/")
 def index():
     return jsonify({"status": "Smart Data Explorer API (DBSCAN) running"})
-
-
-if __name__ == "__main__":
-    app.run(debug=True, port=5000)

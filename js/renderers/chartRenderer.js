@@ -112,6 +112,58 @@ export function renderScatter(svg, rows, labels = [], variant, centroids = []) {
   }
 }
 
+export function renderDendrogram(svg, dendrogramData, cutThreshold = null) {
+  svgClear(svg);
+  if (!dendrogramData?.icoord?.length || !dendrogramData?.dcoord?.length) return;
+
+  const allX = dendrogramData.icoord.flat();
+  const allY = dendrogramData.dcoord.flat();
+  const minX = Math.min(...allX);
+  const maxX = Math.max(...allX);
+  const minY = 0;
+  const maxY = Math.max(...allY, cutThreshold ?? 0, 1);
+
+  const scaleX = (v) => 24 + ((v - minX) / (maxX - minX || 1)) * 372;
+  const scaleY = (v) => 220 - ((v - minY) / (maxY - minY || 1)) * 180;
+  const axisColor = "rgba(255,255,255,0.3)";
+
+  svg.append(svgNode("line", { x1: 24, y1: 220, x2: 396, y2: 220, stroke: axisColor }));
+  svg.append(svgNode("line", { x1: 24, y1: 220, x2: 24, y2: 26, stroke: axisColor }));
+
+  for (let i = 0; i < dendrogramData.icoord.length; i += 1) {
+    const xs = dendrogramData.icoord[i];
+    const ys = dendrogramData.dcoord[i];
+    const path = [
+      `M ${scaleX(xs[0])} ${scaleY(ys[0])}`,
+      `L ${scaleX(xs[1])} ${scaleY(ys[1])}`,
+      `L ${scaleX(xs[2])} ${scaleY(ys[2])}`,
+      `L ${scaleX(xs[3])} ${scaleY(ys[3])}`
+    ].join(" ");
+
+    svg.append(svgNode("path", {
+      d: path,
+      fill: "none",
+      stroke: "#7dd3fc",
+      "stroke-width": 1.6,
+      "stroke-linecap": "round",
+      "stroke-linejoin": "round"
+    }));
+  }
+
+  if (cutThreshold !== null && cutThreshold !== undefined) {
+    const y = scaleY(cutThreshold);
+    svg.append(svgNode("line", {
+      x1: 24,
+      y1: y,
+      x2: 396,
+      y2: y,
+      stroke: "#f59e0b",
+      "stroke-width": 2,
+      "stroke-dasharray": "6 4"
+    }));
+  }
+}
+
 // ================= BAR CHART =================
 export function renderBars(svg, values) {
   svgClear(svg);

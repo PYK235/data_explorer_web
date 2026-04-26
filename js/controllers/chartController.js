@@ -1,11 +1,13 @@
 import { algorithmProfiles } from "../data/mockData.js";
-import { renderBars, renderScatter } from "../renderers/chartRenderer.js";
+import { renderBars, renderDendrogram, renderScatter } from "../renderers/chartRenderer.js";
 import { updateDbscanNoiseCount } from "./uiController.js";
 
 // ================= METRICS + MAIN CHART =================
 export function renderMetrics(state, els) {
   const profile = algorithmProfiles[state.algorithm];
   els.scatterTitle.textContent = profile.label;
+  els.secondaryChartTitle.textContent = "Biểu đồ cụm";
+  els.secondaryChartSubtitle.textContent = "Phân phối điểm";
 
   // ================= DBSCAN =================
   if (state.algorithm === "dbscan") {
@@ -51,13 +53,16 @@ export function renderMetrics(state, els) {
 
   // ================= HIERARCHICAL =================
   if (state.algorithm === "hierarchical") {
+    els.secondaryChartTitle.textContent = "Dendrogram";
+    els.secondaryChartSubtitle.textContent = `${state.linkage} + ${state.metric}`;
+
     els.scoreSilhouette.textContent =
       state.silhouette !== undefined
         ? Number(state.silhouette).toFixed(3)
         : profile.silhouette;
 
     els.scoreClusters.textContent =
-      state.clusterK ?? profile.clusters;
+      state.hierarchicalClusters ?? profile.clusters;
 
     els.scoreDavies.textContent =
       state.davies !== undefined
@@ -73,15 +78,7 @@ export function renderMetrics(state, els) {
       "hierarchical"
     );
 
-    if (state.labels?.length) {
-      const counts = {};
-      state.labels.forEach(l => {
-        counts[l] = (counts[l] || 0) + 1;
-      });
-      renderBars(els.barChart, Object.values(counts));
-    } else {
-      renderBars(els.barChart, profile.bars);
-    }
+    renderDendrogram(els.barChart, state.hierarchicalDendrogram, state.hierarchicalCutThreshold);
 
     return;
   }

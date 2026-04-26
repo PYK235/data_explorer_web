@@ -120,6 +120,17 @@
               <input id="dendrogramRange" type="range" min="20" max="100" value="65">
             </div>
 
+            <div class="field" id="linkageField">
+              <label for="linkageSelect">Linkage method</label>
+              <select id="linkageSelect">
+                <option value="ward">Ward</option>
+                <option value="single">Single</option>
+                <option value="centroid">Centroid</option>
+                <option value="median">Median</option>
+              </select>
+              <p class="muted">Hierarchical hiện dùng metric Euclidean, phù hợp với Ward, centroid và median.</p>
+            </div>
+
             <div class="field">
               <label for="filterSelect">Bộ lọc dữ liệu</label>
               <select id="filterSelect">
@@ -186,8 +197,8 @@
             </div>
             <div class="chart-card">
               <div class="chart-head">
-                <h4>Biểu đồ cụm</h4>
-                <span>Phân phối điểm</span>
+                <h4 id="secondaryChartTitle">Biểu đồ cụm</h4>
+                <span id="secondaryChartSubtitle">Phân phối điểm</span>
               </div>
               <svg id="barChart" viewBox="0 0 420 260" class="chart-svg"></svg>
             </div>

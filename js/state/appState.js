@@ -8,12 +8,22 @@ export const state = {
   algorithm: "kmeans",
   clusterK: 4,
   dendrogramCut: 65,
+  linkage: "ward",
+  metric: "euclidean",
   filter: "all",
 
   // KMeans results
   labels: null,
   centroids: null,
   silhouette: undefined,
+  davies: undefined,
+  points: null,
+  hierarchicalClusters: null,
+  hierarchicalLabels: null,
+  hierarchicalZMatrix: null,
+  hierarchicalDendrogram: null,
+  hierarchicalCutThreshold: null,
+  hierarchicalEngine: null,
 
   // DBSCAN params & results
   dbscanEps: 0.5,
@@ -35,6 +45,14 @@ export function resetToSampleData() {
   state.labels = null;
   state.centroids = null;
   state.silhouette = undefined;
+  state.davies = undefined;
+  state.points = null;
+  state.hierarchicalClusters = null;
+  state.hierarchicalLabels = null;
+  state.hierarchicalZMatrix = null;
+  state.hierarchicalDendrogram = null;
+  state.hierarchicalCutThreshold = null;
+  state.hierarchicalEngine = null;
   state.dbscanLabels = null;
   state.dbscanClusters = null;
   state.dbscanNoise = null;

@@ -81,7 +81,7 @@ export async function fetchDbscanSuggestEps(payload) {
     return { ok: false, message: err.message };
   }
 }
-export async function runHierarchical(data, k, linkage = "ward") {
+export async function runHierarchical(data, cutPercent, linkage = "ward", metric = "euclidean") {
   try {
     const res = await fetch("http://127.0.0.1:5000/hierarchical", {
       method: "POST",
@@ -90,8 +90,9 @@ export async function runHierarchical(data, k, linkage = "ward") {
       },
       body: JSON.stringify({
         data,
-        n_clusters: k,
-        linkage
+        cut_percent: cutPercent,
+        linkage,
+        metric
       })
     });
 

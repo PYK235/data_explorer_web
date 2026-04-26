@@ -10,7 +10,9 @@ export function syncControls(state, els) {
   els.algorithmSelect.value = state.algorithm;
   els.clusterValue.textContent = String(state.clusterK);
   els.dendrogramValue.textContent = `${state.dendrogramCut}%`;
+  if (els.linkageSelect) els.linkageSelect.value = state.linkage;
   els.filterSelect.value = state.filter;
+  syncAlgorithmControls(state);
 }
 
 export function updateClusterLabel(state, els) {
@@ -23,10 +25,27 @@ export function updateClusterLabel(state, els) {
     const noise = state.dbscanNoise ?? 0;
     els.scoreClusters.textContent = `${n} + ${noise} noise`;
   } else if (state.algorithm === "hierarchical") {
-    const clusterEstimate = Math.max(2, Math.round(state.dendrogramCut / 20));
-    els.scoreClusters.textContent = String(clusterEstimate);
+    els.scoreClusters.textContent = String(state.hierarchicalClusters ?? "—");
   } else {
     els.scoreClusters.textContent = algorithmProfiles[state.algorithm]?.clusters ?? "—";
+  }
+}
+
+export function syncAlgorithmControls(state) {
+  const clusterField = document.getElementById("clusterRange")?.closest(".field");
+  const dendrogramField = document.getElementById("dendrogramRange")?.closest(".field");
+  const linkageField = document.getElementById("linkageField");
+
+  if (clusterField) {
+    clusterField.style.display = state.algorithm === "kmeans" ? "" : "none";
+  }
+
+  if (dendrogramField) {
+    dendrogramField.style.display = state.algorithm === "hierarchical" ? "" : "none";
+  }
+
+  if (linkageField) {
+    linkageField.style.display = state.algorithm === "hierarchical" ? "" : "none";
   }
 }
 
@@ -36,10 +55,6 @@ export function updateClusterLabel(state, els) {
 const DBSCAN_BLOCK_ID = "dbscanControls";
 
 export function showDbscanControls(state, onEpsChange, onMinSamplesChange) {
-  // Ẩn dendrogram slider khi dùng DBSCAN
-  const dendrogramField = document.getElementById("dendrogramRange")?.closest(".field");
-  if (dendrogramField) dendrogramField.style.display = "none";
-
   if (document.getElementById(DBSCAN_BLOCK_ID)) return;
 
   const controlStack = document.querySelector(".control-stack");
@@ -97,10 +112,6 @@ export function showDbscanControls(state, onEpsChange, onMinSamplesChange) {
 }
 
 export function hideDbscanControls() {
-  // Hiện lại dendrogram slider
-  const dendrogramField = document.getElementById("dendrogramRange")?.closest(".field");
-  if (dendrogramField) dendrogramField.style.display = "";
-
   document.getElementById(DBSCAN_BLOCK_ID)?.remove();
 }
 

@@ -7,6 +7,7 @@ import { syncControls, updateAlgorithmButtons } from "./controllers/uiController
 
 function refreshAll() {
   applyFilter(state, els);
+  syncControls(state, els);
   renderMetrics(state, els);
   renderCompareBoards(state, els);
   updateAlgorithmButtons(state);

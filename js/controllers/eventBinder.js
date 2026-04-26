@@ -11,6 +11,7 @@ import {
 } from "../services/api.js";
 
 import {
+  syncAlgorithmControls,
   syncControls,
   updateClusterLabel,
   updateAlgorithmButtons,
@@ -63,6 +64,20 @@ export function bindEvents(state, els, refreshAll) {
     rerenderMainScatter(state, els);
   });
 
+  if (els.linkageSelect) {
+    els.linkageSelect.addEventListener("change", async (e) => {
+      state.linkage = e.target.value;
+
+      if (state.algorithm !== "hierarchical") return;
+
+      await runAlgorithm(state);
+      updateClusterLabel(state, els);
+      renderMetrics(state, els);
+      rerenderMainScatter(state, els);
+      renderCompareBoards(state, els);
+    });
+  }
+
   // ================= SLIDER K =================
   els.clusterRange.addEventListener("input", async (e) => {
     state.clusterK = Number(e.target.value);
@@ -75,9 +90,34 @@ export function bindEvents(state, els, refreshAll) {
     renderCompareBoards(state, els);
   });
 
+  els.dendrogramRange.addEventListener("input", async (e) => {
+    state.dendrogramCut = Number(e.target.value);
+    els.dendrogramValue.textContent = `${state.dendrogramCut}%`;
+
+    if (state.algorithm !== "hierarchical") {
+      return;
+    }
+
+    await runAlgorithm(state);
+
+    updateClusterLabel(state, els);
+    renderMetrics(state, els);
+    rerenderMainScatter(state, els);
+    renderCompareBoards(state, els);
+  });
+
   // ================= FILTER =================
-  els.filterSelect.addEventListener("change", () => {
-    state.filteredRows = applyFilter(state);
+  els.filterSelect.addEventListener("change", async (e) => {
+    state.filter = e.target.value;
+    applyFilter(state, els);
+
+    if (state.algorithm === "hierarchical") {
+      await runAlgorithm(state);
+      updateClusterLabel(state, els);
+      renderMetrics(state, els);
+      renderCompareBoards(state, els);
+    }
+
     rerenderMainScatter(state, els);
   });
 
@@ -120,6 +160,8 @@ export function bindEvents(state, els, refreshAll) {
 
 // ================= UI CONTROL =================
 function handleAlgorithmUI(state, els) {
+  syncAlgorithmControls(state);
+
   if (state.algorithm === "dbscan") {
     showDbscanControls(
       state,
@@ -166,6 +208,10 @@ function getNumericPayload(rows) {
 
 // ================= KMEANS =================
 async function runKMeans(state) {
+  state.points = null;
+  state.hierarchicalDendrogram = null;
+  state.hierarchicalCutThreshold = null;
+
   const res = await fetchClusteringResults({
     data: state.rows,
     k: state.clusterK
@@ -181,6 +227,10 @@ async function runKMeans(state) {
 
 // ================= DBSCAN =================
 async function runDbscan(state) {
+  state.points = null;
+  state.hierarchicalDendrogram = null;
+  state.hierarchicalCutThreshold = null;
+
   const res = await fetchDbscanResults({
     data: getNumericPayload(state.rows),
     eps: state.dbscanEps,
@@ -205,14 +255,16 @@ async function runHierarchicalAlgo(state) {
   const rawData = state.filteredRows || state.rows;
 
   const inputData = rawData.map(row => {
-    if (Array.isArray(row)) return row.map(Number);
+    if (Array.isArray(row))
+       return row.map(Number);
     return Object.values(row).filter(v => !isNaN(v)).map(Number);
   });
 
   const res = await runHierarchical(
     inputData,
-    state.clusterK,
-    state.linkage || "ward"
+    state.dendrogramCut,
+    state.linkage || "ward",
+    state.metric || "euclidean"
   );
 
   if (res.ok) {
@@ -220,5 +272,11 @@ async function runHierarchicalAlgo(state) {
     state.silhouette = res.result.silhouette;
     state.davies = res.result.davies_bouldin;
     state.points = res.result.points;
+    state.hierarchicalClusters = res.result.n_clusters;
+    state.hierarchicalLabels = res.result.labels;
+    state.hierarchicalZMatrix = res.result.z_matrix;
+    state.hierarchicalDendrogram = res.result.dendrogram;
+    state.hierarchicalCutThreshold = res.result.cut_threshold;
+    state.hierarchicalEngine = res.result.engine;
   }
 }
