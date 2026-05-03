@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Smart Data Explorer</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <div class="brand-card">
+        <p class="eyebrow">Smart Data Explorer</p>
+        <h1>Customer Clustering Dashboard</h1>
+        <p class="muted">Frontend dành cho phân nhóm khách hàng, hiển thị insight, thống kê và dự đoán khách mới.</p>
+      </div>
+
+      <nav class="nav-section">
+        <button class="nav-link active" data-target="upload">Upload dữ liệu</button>
+        <button class="nav-link" data-target="dataset">Xem dữ liệu</button>
+        <button class="nav-link" data-target="algorithm">Chọn thuật toán</button>
+        <button class="nav-link" data-target="results">Insight khách hàng</button>
+        <button class="nav-link" data-target="compare">So sánh thuật toán</button>
+      </nav>
+
+      <div class="status-card">
+        <span class="status-dot"></span>
+        <div>
+          <p class="status-label">Demo mode</p>
+          <p class="muted">Dữ liệu mẫu đã có sẵn labels, tên nhóm và flow predict để nối backend sau.</p>
+        </div>
+      </div>
+    </aside>
+
+    <main class="content">
+      <header class="hero">
+        <div>
+          <p class="eyebrow">Machine Learning Dashboard</p>
+          <h2>Hiển thị rõ ràng các nhóm khách hàng, outlier và insight kinh doanh</h2>
+        </div>
+        <div class="hero-stats">
+          <div class="mini-stat">
+            <span>Tập dữ liệu</span>
+            <strong id="datasetName">Mall Customers.csv</strong>
+          </div>
+          <div class="mini-stat">
+            <span>Số bản ghi</span>
+            <strong id="rowCount">12</strong>
+          </div>
+          <div class="mini-stat">
+            <span>Số cột</span>
+            <strong id="columnCount">6</strong>
+          </div>
+        </div>
+      </header>
+
+      <section class="grid-layout">
+        <article class="panel panel-upload" id="upload">
+          <div class="panel-head">
+            <div>
+              <p class="eyebrow">Trang tải file CSV/Excel</p>
+              <h3>Upload dữ liệu khách hàng</h3>
+            </div>
+            <button id="sampleBtn" class="ghost-btn">Dùng dữ liệu mẫu</button>
+          </div>
+
+          <label class="upload-zone" for="fileInput">
+            <input id="fileInput" type="file" accept=".csv,.xlsx,.xls">
+            <span class="upload-badge">CSV / Excel</span>
+            <strong>Kéo thả hoặc bấm để chọn file</strong>
+            <p>Frontend hỗ trợ preview CSV trực tiếp. Excel giữ sẵn luồng để TV2 nối API backend.</p>
+          </label>
+
+          <div class="upload-meta">
+            <div class="info-pill">
+              <span>File hiện tại</span>
+              <strong id="fileNameLabel">Mall Customers.csv</strong>
+            </div>
+            <div class="info-pill">
+              <span>Trạng thái</span>
+              <strong id="fileStatusLabel">Đã nạp dữ liệu mẫu</strong>
+            </div>
+          </div>
+        </article>
+
+        <article class="panel panel-filters" id="algorithm">
+          <div class="panel-head">
+            <div>
+              <p class="eyebrow">Bộ điều khiển</p>
+              <h3>Thuật toán và tham số</h3>
+            </div>
+          </div>
+
+          <div class="control-stack">
+            <div class="field">
+              <label for="algorithmSelect">Thuật toán chính</label>
+              <select id="algorithmSelect">
+                <option value="kmeans">K-Means</option>
+                <option value="dbscan">DBSCAN</option>
+                <option value="hierarchical">Hierarchical</option>
+              </select>
+            </div>
+
+            <div class="field">
+              <div class="field-row">
+                <label for="clusterRange">Số cụm k</label>
+                <strong id="clusterValue">4</strong>
+              </div>
+              <input id="clusterRange" type="range" min="2" max="10" value="4">
+            </div>
+
+            <div class="field">
+              <div class="field-row">
+                <label for="dendrogramRange">Mức cắt dendrogram</label>
+                <strong id="dendrogramValue">65%</strong>
+              </div>
+              <input id="dendrogramRange" type="range" min="20" max="100" value="65">
+            </div>
+
+            <div class="field">
+              <label for="filterSelect">Bộ lọc dữ liệu</label>
+              <select id="filterSelect">
+                <option value="all">Toàn bộ dữ liệu</option>
+                <option value="female">Chỉ khách nữ</option>
+                <option value="male">Chỉ khách nam</option>
+                <option value="high-income">Thu nhập cao</option>
+              </select>
+            </div>
+
+            <div class="algorithm-grid">
+              <button class="algo-chip selected" data-algo-card="kmeans">K-Means</button>
+              <button class="algo-chip" data-algo-card="dbscan">DBSCAN</button>
+              <button class="algo-chip" data-algo-card="hierarchical">Hierarchical</button>
+            </div>
+          </div>
+        </article>
+
+        <article class="panel panel-table" id="dataset">
+          <div class="panel-head">
+            <div>
+              <p class="eyebrow">Trang hiển thị dữ liệu</p>
+              <h3>Preview dữ liệu sau upload</h3>
+            </div>
+            <span class="panel-tag" id="tableTag">12 dòng hiển thị</span>
+          </div>
+
+          <div class="table-wrap">
+            <table id="dataTable"></table>
+          </div>
+        </article>
+
+        <article class="panel panel-results" id="results">
+          <div class="panel-head">
+            <div>
+              <p class="eyebrow">Trang kết quả</p>
+              <h3>Kết quả phân cụm khách hàng và insight</h3>
+            </div>
+            <button id="refreshBtn" class="ghost-btn">Làm mới demo</button>
+          </div>
+
+          <div class="metrics-grid">
+            <div class="metric-card">
+              <span>Silhouette Score</span>
+              <strong id="scoreSilhouette">0.71</strong>
+            </div>
+            <div class="metric-card">
+              <span>Davies-Bouldin</span>
+              <strong id="scoreDavies">0.42</strong>
+            </div>
+            <div class="metric-card">
+              <span>Số nhóm phát hiện</span>
+              <strong id="scoreClusters">4</strong>
+            </div>
+          </div>
+
+          <div class="results-layout">
+            <div class="results-main">
+              <div class="chart-card">
+                <div class="chart-head">
+                  <h4>Scatter Plot Khách Hàng</h4>
+                  <span id="scatterTitle">K-Means</span>
+                </div>
+                <div class="chart-stage">
+                  <svg id="scatterPlot" viewBox="0 0 420 260" class="chart-svg"></svg>
+                  <div id="scatterTooltip" class="chart-tooltip" hidden></div>
+                </div>
+              </div>
+
+              <div class="chart-card">
+                <div class="chart-head">
+                  <h4>Phân bố nhóm khách hàng</h4>
+                  <span>Tỷ lệ theo cluster</span>
+                </div>
+                <svg id="barChart" viewBox="0 0 420 260" class="chart-svg"></svg>
+              </div>
+            </div>
+
+            <div class="insight-stack">
+              <div class="chart-card">
+                <div class="chart-head">
+                  <h4>Tên nhóm khách hàng</h4>
+                  <span>Label và insight</span>
+                </div>
+                <div id="clusterNameList" class="cluster-name-list"></div>
+              </div>
+
+              <div class="chart-card">
+                <div class="chart-head">
+                  <h4>Dashboard thống kê</h4>
+                  <span>Tỷ lệ từng nhóm</span>
+                </div>
+                <div id="dashboardStats" class="stats-list"></div>
+              </div>
+
+              <div class="chart-card">
+                <div class="chart-head">
+                  <h4>Nhập khách mới</h4>
+                  <span>Dự đoán nhóm khách hàng</span>
+                </div>
+                <form id="predictForm" class="predict-form">
+                  <label class="field">
+                    <span>Income</span>
+                    <input id="predictIncome" type="number" min="0" step="1" placeholder="Ví dụ: 80">
+                  </label>
+                  <label class="field">
+                    <span>Spending</span>
+                    <input id="predictSpending" type="number" min="0" step="1" placeholder="Ví dụ: 90">
+                  </label>
+                  <button id="predictBtn" type="submit" class="ghost-btn predict-btn">Predict</button>
+                </form>
+                <div id="predictResult" class="predict-result">
+                  Khách này thuộc nhóm: <strong>VIP</strong>
+                </div>
+              </div>
+            </div>
+          </div>
+        </article>
+      </section>
+
+      <section class="panel compare-panel" id="compare">
+        <div class="panel-head">
+          <div>
+            <p class="eyebrow">Split-screen Compare</p>
+            <h3>So sánh K-Means, DBSCAN và Hierarchical</h3>
+          </div>
+          <p class="muted">DBSCAN hiển thị noise riêng để nhận biết khách bất thường ngay trên cùng màn hình.</p>
+        </div>
+
+        <div class="compare-grid">
+          <div class="compare-card">
+            <div class="compare-head">
+              <h4>K-Means</h4>
+              <span>Nhóm khách hàng chính</span>
+            </div>
+            <svg id="compareKmeans" viewBox="0 0 360 220" class="chart-svg compare-svg"></svg>
+          </div>
+
+          <div class="compare-card">
+            <div class="compare-head">
+              <h4>DBSCAN</h4>
+              <span>Phát hiện bất thường</span>
+            </div>
+            <svg id="compareDbscan" viewBox="0 0 360 220" class="chart-svg compare-svg"></svg>
+          </div>
+
+          <div class="compare-card">
+            <div class="compare-head">
+              <h4>Hierarchical</h4>
+              <span>Phân cấp nhóm khách</span>
+            </div>
+            <svg id="compareHierarchical" viewBox="0 0 360 220" class="chart-svg compare-svg"></svg>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>
