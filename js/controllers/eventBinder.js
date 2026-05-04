@@ -1,3 +1,4 @@
+import { renderOutlierPanel, destroyOutlierPanel } from "../renderers/outlierPanel.js";
 import { defaultDataset } from "../data/mockData.js";
 import { applyFilter } from "./datasetController.js";
 import { renderMetrics, renderCompareBoards, rerenderMainScatter } from "./chartController.js";
@@ -178,6 +179,7 @@ function handleAlgorithmUI(state, els) {
     );
   } else {
     hideDbscanControls();
+    destroyOutlierPanel();
   }
 }
 
@@ -231,8 +233,10 @@ async function runDbscan(state) {
   state.hierarchicalDendrogram = null;
   state.hierarchicalCutThreshold = null;
 
+  const numericData = getNumericPayload(state.rows);
+
   const res = await fetchDbscanResults({
-    data: getNumericPayload(state.rows),
+    data: numericData,
     eps: state.dbscanEps,
     min_samples: state.dbscanMinSamples,
   });
@@ -247,6 +251,13 @@ async function runDbscan(state) {
     // unify
     state.labels = res.result.labels;
     state.centroids = res.result.pseudo_centroids;
+
+    // TV3: render outlier panel
+    renderOutlierPanel({
+      data: numericData,
+      labels: res.result.labels,
+      col_names: ["income", "spending"],
+    });
   }
 }
 
