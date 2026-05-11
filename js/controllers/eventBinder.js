@@ -1,3 +1,5 @@
+
+import { renderOutlierPanel, destroyOutlierPanel } from "../renderers/outlierPanel.js";
 import { defaultDataset } from "../data/mockData.js";
 import { resetToSampleData } from "../state/appState.js";
 import { readCsvFile } from "../services/fileParser.js";
@@ -17,20 +19,46 @@ export function bindEvents(state, els, refreshAll) {
 
   document.querySelectorAll(".algo-chip").forEach((button) => {
     button.addEventListener("click", async () => {
-      state.algorithm = button.dataset.algoCard;
+
+      const nextAlgo = button.dataset.algoCard;
+
+      // tránh refresh vô ích
+      if (state.algorithm === nextAlgo) return;
+
+      state.algorithm = nextAlgo;
+
       syncControls(state, els);
+
       await refreshAll();
     });
   });
 
   els.algorithmSelect.addEventListener("change", async (event) => {
-    state.algorithm = event.target.value;
+
+    const nextAlgo = event.target.value;
+
+    // tránh refresh vô ích
+    if (state.algorithm === nextAlgo) return;
+
+    state.algorithm = nextAlgo;
+
     await refreshAll();
   });
 
-  els.clusterRange.addEventListener("input", async (event) => {
-    state.clusterK = Number(event.target.value);
+  // FIX:
+  // input -> change
+  // tránh spam refreshAll()
+  els.clusterRange.addEventListener("change", async (event) => {
+
+    const nextK = Number(event.target.value);
+
+    // tránh refresh liên tục
+    if (state.clusterK === nextK) return;
+
+    state.clusterK = nextK;
+
     updateClusterLabel(state, els);
+
     await refreshAll();
   });
 
@@ -57,50 +85,229 @@ export function bindEvents(state, els, refreshAll) {
 
   els.fileInput.addEventListener("change", async (event) => {
     const [file] = event.target.files || [];
+
     if (!file) return;
 
     state.datasetName = file.name;
 
     if (file.name.match(/\.(xlsx|xls)$/i)) {
+
       state.fileStatus = "Đã nhận file Excel, chờ backend/API để đọc sheet";
+
       state.rows = [...defaultDataset];
-      await uploadDatasetToBackend(file);
+
+      try {
+        await uploadDatasetToBackend(file);
+      } catch (error) {
+        console.error(error);
+      }
+
       await refreshAll();
+
       return;
     }
 
     try {
+
       const rows = await readCsvFile(file);
-      state.rows = rows.length ? rows : [...defaultDataset];
-      state.fileStatus = rows.length ? "Đọc file CSV thành công" : "CSV không hợp lệ, đã quay về dữ liệu mẫu";
-      await refreshAll();
+
+      state.rows = rows.length
+        ? rows
+        : [...defaultDataset];
+
+      state.fileStatus = rows.length
+        ? "Đọc file CSV thành công"
+        : "CSV không hợp lệ, đã quay về dữ liệu mẫu";
+
     } catch (error) {
+
+      console.error(error);
+
       state.rows = [...defaultDataset];
-      state.fileStatus = "Không đọc được CSV, đã quay về dữ liệu mẫu";
-      await refreshAll();
+
+      state.fileStatus = "Lỗi đọc file";
     }
+
+    // FIX:
+    // bỏ duplicate refreshAll
+    await refreshAll();
   });
 
+  // =====================================================
+  // FIX PREDICT RELOAD
+  // =====================================================
   els.predictForm.addEventListener("submit", async (event) => {
+
+    // FIX:
+    // tránh reload page
     event.preventDefault();
-    const income = Number(els.predictIncome.value);
-    const spending = Number(els.predictSpending.value);
 
-    if (Number.isNaN(income) || Number.isNaN(spending)) {
-      els.predictResult.innerHTML = "Vui lòng nhập đầy đủ income và spending.";
-      return;
+    try {
+
+      const income = Number(
+        els.predictIncome.value
+      );
+
+      const spending = Number(
+        els.predictSpending.value
+      );
+
+      if (
+        isNaN(income) ||
+        isNaN(spending)
+      ) {
+
+        els.predictResult.innerHTML =
+          "Vui lòng nhập dữ liệu hợp lệ";
+
+        return;
+      }
+
+      const result = await predictCustomer({
+        income,
+        spending,
+        algorithm: state.algorithm
+      });
+
+      state.predictionResult =
+        buildPredictMessage(result);
+
+      els.predictResult.innerHTML =
+        state.predictionResult;
+
+    } catch (error) {
+
+      console.error(error);
+
+      els.predictResult.innerHTML =
+        "Predict thất bại";
     }
-
-    const prediction = await predictCustomer({
-      income,
-      spending,
-      algorithm: state.algorithm
-    });
-
-    state.predictionResult = `
-      ${buildPredictMessage(prediction)}
-      <strong>${prediction.reason}</strong>
-    `;
-    els.predictResult.innerHTML = state.predictionResult;
   });
 }
+
+// ================= UI CONTROL =================
+function handleAlgorithmUI(state, els) {
+  syncAlgorithmControls(state);
+
+  if (state.algorithm === "dbscan") {
+    showDbscanControls(
+      state,
+      async () => {
+        await runAlgorithm(state);
+        renderMetrics(state, els);
+        updateDbscanNoiseCount(state.dbscanNoise);
+      },
+      async () => {
+        await runAlgorithm(state);
+        renderMetrics(state, els);
+        updateDbscanNoiseCount(state.dbscanNoise);
+      }
+    );
+  } else {
+    hideDbscanControls();
+  }
+}
+
+// ================= CORE =================
+async function runAlgorithm(state) {
+  if (!state.rows?.length) return;
+
+  console.log("Running:", state.algorithm);
+
+  if (state.algorithm === "kmeans") {
+    await runKMeans(state);
+  } 
+  else if (state.algorithm === "dbscan") {
+    await runDbscan(state);
+  } 
+  else if (state.algorithm === "hierarchical") {
+    await runHierarchicalAlgo(state);
+  }
+}
+
+// ================= HELPERS =================
+function getNumericPayload(rows) {
+  return rows.map(r => {
+    if (Array.isArray(r)) return [Number(r[0] || 0), Number(r[1] || 0)];
+    return [Number(r.income || 0), Number(r.spending || 0)];
+  });
+}
+
+// ================= KMEANS =================
+async function runKMeans(state) {
+  state.points = null;
+  state.hierarchicalDendrogram = null;
+  state.hierarchicalCutThreshold = null;
+
+  const res = await fetchClusteringResults({
+    data: state.rows,
+    k: state.clusterK
+  });
+
+  if (res.ok) {
+    state.labels = res.result.labels;
+    state.centroids = res.result.centroids;
+    state.silhouette = res.result.silhouette;
+    state.davies = res.result.davies_bouldin;
+  }
+}
+
+// ================= DBSCAN =================
+async function runDbscan(state) {
+  state.points = null;
+  state.hierarchicalDendrogram = null;
+  state.hierarchicalCutThreshold = null;
+
+  const res = await fetchDbscanResults({
+    data: getNumericPayload(state.rows),
+    eps: state.dbscanEps,
+    min_samples: state.dbscanMinSamples,
+  });
+
+  if (res.ok) {
+    state.dbscanLabels = res.result.labels;
+    state.dbscanClusters = res.result.n_clusters;
+    state.dbscanNoise = res.result.n_noise;
+    state.dbscanSilhouette = res.result.silhouette;
+    state.dbscanPseudoCentroids = res.result.pseudo_centroids;
+
+    // unify
+    state.labels = res.result.labels;
+    state.centroids = res.result.pseudo_centroids;
+  }
+}
+
+// ================= HIERARCHICAL =================
+async function runHierarchicalAlgo(state) {
+  const rawData = state.filteredRows || state.rows;
+
+  const inputData = rawData.map(row => {
+    if (Array.isArray(row))
+       return row.map(Number);
+
+    return Object.values(row)
+      .filter(v => !isNaN(v))
+      .map(Number);
+  });
+
+  const res = await runHierarchical(
+    inputData,
+    state.dendrogramCut,
+    state.linkage || "ward",
+    state.metric || "euclidean"
+  );
+
+  if (res.ok) {
+    state.labels = res.result.labels;
+    state.silhouette = res.result.silhouette;
+    state.davies = res.result.davies_bouldin;
+    state.points = res.result.points;
+    state.hierarchicalClusters = res.result.n_clusters;
+    state.hierarchicalLabels = res.result.labels;
+    state.hierarchicalZMatrix = res.result.z_matrix;
+    state.hierarchicalDendrogram = res.result.dendrogram;
+    state.hierarchicalCutThreshold = res.result.cut_threshold;
+    state.hierarchicalEngine = res.result.engine;
+  }
+}
+

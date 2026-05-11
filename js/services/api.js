@@ -169,3 +169,31 @@ export async function predictCustomer(payload) {
     };
   }
 }
+
+// ============================
+// DBSCAN — Phân tích outlier
+// ============================
+export async function fetchOutlierAnalysis(payload) {
+  try {
+    const res = await fetch("http://127.0.0.1:5000/dbscan/outlier-analysis", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        data: payload.data,
+        labels: payload.labels,
+        col_names: payload.col_names || ["income", "spending"],
+      }),
+    });
+
+    if (!res.ok) {
+      const errText = await res.text();
+      console.error("outlier-analysis backend error:", errText);
+      throw new Error("Server error");
+    }
+    const result = await res.json();
+    return { ok: true, result };
+  } catch (err) {
+    console.error("Outlier analysis error:", err);
+    return { ok: false, message: err.message };
+  }
+}

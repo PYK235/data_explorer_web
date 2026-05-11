@@ -1,3 +1,6 @@
 __pycache__/
-*.pyc
-.vscode/
+*.pkl
+models/
+node_modules/
+venv/
+ .env
