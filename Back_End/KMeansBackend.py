@@ -34,25 +34,39 @@ cluster_groups = {}
 # AUTO LOAD MODEL
 # =========================================================
 def load_saved_model():
+
     global trained_model
     global trained_scaler
     global cluster_groups
 
     try:
 
+        loaded = False
+
         if os.path.exists(MODEL_PATH):
             trained_model = joblib.load(MODEL_PATH)
+            loaded = True
 
         if os.path.exists(SCALER_PATH):
             trained_scaler = joblib.load(SCALER_PATH)
+            loaded = True
 
         if os.path.exists(GROUPS_PATH):
             cluster_groups = joblib.load(GROUPS_PATH)
+            loaded = True
 
-        print("✅ Saved KMeans model loaded")
+        if loaded:
+            print("✅ Saved KMeans model loaded")
+        else:
+            print("⚠️ No saved model found")
 
     except Exception as e:
-        print("❌ Failed loading saved model:", e)
+
+        print(
+            "❌ Failed loading saved model:",
+            e
+        )
+
 
 load_saved_model()
 
@@ -236,11 +250,11 @@ def auto_train_predict_model(
     cluster_groups = groups
 
     # save
-    joblib.dump(clf, MODEL_PATH)
-    joblib.dump(scaler, SCALER_PATH)
-    joblib.dump(groups, GROUPS_PATH)
+    # joblib.dump(clf, MODEL_PATH)
+    # joblib.dump(scaler, SCALER_PATH)
+    # joblib.dump(groups, GROUPS_PATH)
 
-    print("✅ Predict model auto-trained")
+    # print("✅ Predict model auto-trained")
 
 
 # =========================================================
@@ -303,6 +317,8 @@ def upload():
 # =========================================================
 @kmeans_bp.route("/kmeans", methods=["POST"])
 def run_kmeans():
+
+    print("🔥 /kmeans called")
 
     body = request.get_json(
         silent=True

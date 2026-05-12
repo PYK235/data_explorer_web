@@ -9,7 +9,7 @@ function getApiBaseUrl() {
   const params = new URLSearchParams(window.location.search);
   const queryBase = params.get("apiBase");
   const localBase = window.localStorage.getItem("smart-data-explorer-api-base");
-  return queryBase || localBase || "http://127.0.0.1:8000";
+  return queryBase || localBase || "http://127.0.0.1:5000";
 }
 
 function buildHeaders() {

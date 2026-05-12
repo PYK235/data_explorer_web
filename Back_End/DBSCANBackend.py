@@ -52,41 +52,41 @@ def upload():
         return jsonify({"error": str(e)}), 400
 
 
-@dbscan_bp.route("/kmeans", methods=["POST"])
-def kmeans():
-    body = request.get_json(silent=True) or {}
-    data = body.get("data")
-    k = int(body.get("k", 3))
-    if not data:
-        return jsonify({"error": "No data"}), 400
+# @dbscan_bp.route("/kmeans", methods=["POST"])
+# def kmeans():
+#     body = request.get_json(silent=True) or {}
+#     data = body.get("data")
+#     k = int(body.get("k", 3))
+#     if not data:
+#         return jsonify({"error": "No data"}), 400
 
-    X = np.array(data)
-    if X.ndim != 2 or X.shape[0] < 2:
-        return jsonify({"error": "Data không hợp lệ"}), 400
+#     X = np.array(data)
+#     if X.ndim != 2 or X.shape[0] < 2:
+#         return jsonify({"error": "Data không hợp lệ"}), 400
 
-    scaler = StandardScaler()
-    X_scaled = scaler.fit_transform(X)
-    k = max(2, min(k, X.shape[0]))
-    try:
-        model = KMeans(n_clusters=k, random_state=42, n_init=10)
-        labels = model.fit_predict(X_scaled)
-        centroids_scaled = model.cluster_centers_
-        centroids = scaler.inverse_transform(centroids_scaled)
-        try:
-            score = float(silhouette_score(X_scaled, labels))
-        except Exception:
-            score = 0.0
-        unique, counts = np.unique(labels, return_counts=True)
-        cluster_counts = dict(zip(unique.astype(int).tolist(), counts.astype(int).tolist()))
-        return jsonify({
-            "labels": labels.tolist(),
-            "centroids": centroids.tolist(),
-            "silhouette": score,
-            "n_clusters": int(k),
-            "cluster_counts": cluster_counts
-        })
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
+#     scaler = StandardScaler()
+#     X_scaled = scaler.fit_transform(X)
+#     k = max(2, min(k, X.shape[0]))
+#     try:
+#         model = KMeans(n_clusters=k, random_state=42, n_init=10)
+#         labels = model.fit_predict(X_scaled)
+#         centroids_scaled = model.cluster_centers_
+#         centroids = scaler.inverse_transform(centroids_scaled)
+#         try:
+#             score = float(silhouette_score(X_scaled, labels))
+#         except Exception:
+#             score = 0.0
+#         unique, counts = np.unique(labels, return_counts=True)
+#         cluster_counts = dict(zip(unique.astype(int).tolist(), counts.astype(int).tolist()))
+#         return jsonify({
+#             "labels": labels.tolist(),
+#             "centroids": centroids.tolist(),
+#             "silhouette": score,
+#             "n_clusters": int(k),
+#             "cluster_counts": cluster_counts
+#         })
+#     except Exception as e:
+#         return jsonify({"error": str(e)}), 500
 
 
 @dbscan_bp.route("/elbow", methods=["POST"])
