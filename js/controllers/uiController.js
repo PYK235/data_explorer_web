@@ -9,6 +9,17 @@ export function syncControls(state, els) {
   els.clusterValue.textContent = String(state.clusterK);
   els.dendrogramValue.textContent = `${state.dendrogramCut}%`;
   els.filterSelect.value = state.filter;
+
+  // Show/hide controls based on algorithm
+  const clusterField = els.clusterRange.closest('.field');
+  const dendrogramField = els.dendrogramRange.closest('.field');
+
+  if (clusterField) {
+    clusterField.style.display = state.algorithm === 'kmeans' ? 'block' : 'none';
+  }
+  if (dendrogramField) {
+    dendrogramField.style.display = state.algorithm === 'hierarchical' ? 'block' : 'none';
+  }
 }
 
 export function updateClusterLabel(state, els) {

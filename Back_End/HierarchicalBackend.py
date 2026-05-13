@@ -66,8 +66,14 @@ def run_hierarchical():
         score = -1
         davies = -1
 
-    pca = PCA(n_components=2)
-    points = pca.fit_transform(X_scaled)
+    if X_scaled.shape[1] >= 2:
+        pca = PCA(n_components=2)
+        points = pca.fit_transform(X_scaled)
+    else:
+        points = np.column_stack([
+            X_scaled[:, 0],
+            np.zeros(len(X_scaled))
+        ])
     dendro = dendrogram(Z, no_plot=True, color_threshold=cut_threshold)
 
     return jsonify({

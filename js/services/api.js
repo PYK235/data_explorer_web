@@ -54,19 +54,15 @@ function getAlgorithmPath(algorithm) {
 
 function buildRequestPayload(payload) {
   return {
-    data: payload.rows.map((row) => ({
-      id: row.id,
-      customer: row.customer,
-      income: Number(row.income),
-      spending: Number(row.spending),
-      age: Number(row.age),
-      gender: row.gender
-    })),
+    data: payload.rows.map((row) => [
+  Number(row.income),
+  Number(row.spending)
+]),
     k: payload.clusterK,
     eps: payload.eps ?? 12,
     min_samples: payload.minSamples ?? 3,
     linkage: payload.linkage ?? "ward",
-    dendrogram_cut: payload.dendrogramCut
+    cut_percent: payload.dendrogramCut
   };
 }
 
@@ -153,7 +149,11 @@ function buildFallbackResponse(payload) {
     stats: buildDashboardStats(clusteredRows),
     clusterMap: buildClusterNameMap(clusteredRows),
     silhouette: payload.algorithm === "dbscan" ? "0.63" : payload.algorithm === "hierarchical" ? "0.68" : "0.71",
-    davies: payload.algorithm === "dbscan" ? "0.58" : payload.algorithm === "hierarchical" ? "0.47" : "0.42"
+    davies: payload.algorithm === "dbscan" ? "0.58" : payload.algorithm === "hierarchical" ? "0.47" : "0.42",
+    dendrogram: null,
+    cut_threshold: null,
+    distance_range: null,
+    n_clusters: null
   };
 }
 
@@ -182,7 +182,11 @@ export async function fetchClusteringResults(payload) {
         getValue(response, ["clusterMap", "cluster_map"], null) ??
         buildClusterNameMap(clusteredRows),
       silhouette: String(getValue(response, ["silhouette_score", "silhouette"], payload.algorithm === "dbscan" ? "0.63" : "0.71")),
-      davies: String(getValue(response, ["davies_bouldin", "daviesBouldin", "davies"], payload.algorithm === "dbscan" ? "0.58" : "0.42"))
+      davies: String(getValue(response, ["davies_bouldin", "daviesBouldin", "davies"], payload.algorithm === "dbscan" ? "0.58" : "0.42")),
+      dendrogram: getValue(response, ["dendrogram"], null),
+      cut_threshold: getValue(response, ["cut_threshold", "cutThreshold"], null),
+      distance_range: getValue(response, ["distance_range", "distanceRange"], null),
+      n_clusters: getValue(response, ["n_clusters", "nClusters"], null)
     };
   } catch (error) {
     return buildFallbackResponse(payload);
@@ -223,7 +227,7 @@ export async function predictCustomer(payload) {
 // ============================
 export async function fetchOutlierAnalysis(payload) {
   try {
-    const res = await fetch("http://127.0.0.1:5000/dbscan/outlier-analysis", {
+    const res = await fetch(`${getApiBaseUrl()}/dbscan/outlier-analysis`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
