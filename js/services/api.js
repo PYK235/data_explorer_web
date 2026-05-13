@@ -127,6 +127,7 @@ export async function fetchClusteringResults(payload) {
       ok: true,
       source: "api",
       clusteredRows,
+      rawResponse: response,
       stats:
         getValue(response, ["stats", "dashboard_stats"], null) ??
         buildDashboardStats(clusteredRows),

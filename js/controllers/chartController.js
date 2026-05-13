@@ -39,6 +39,12 @@ export async function renderMetrics(state, els) {
   const fallbackMetrics = getFallbackMetrics(state.algorithm);
 
   state.clusteredRows = clusteredRows;
+  state.centroids = apiResult.rawResponse?.centroids || [];
+  console.log(
+    "CENTROIDS:",
+    state.centroids
+  );
+
   state.lastClusterResultSource = apiResult.source;
 
   els.scoreSilhouette.textContent = apiResult.silhouette ?? fallbackMetrics.silhouette;

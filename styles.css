@@ -399,6 +399,7 @@ tbody tr:hover {
   padding: 18px;
   background: rgba(255, 255, 255, 0.03);
   border: 1px solid rgba(255, 255, 255, 0.06);
+   overflow: hidden;
 }
 
 .chart-head,
@@ -638,4 +639,28 @@ body.snapshot-compare .compare-panel {
 
 body.snapshot-compare .hero {
   padding-bottom: 22px;
+}
+.export-wrapper {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 12px 0 4px;
+}
+
+.export-btn { 
+  border: none;
+  outline: none;
+  cursor: pointer;
+  padding: 12px 22px;
+  border-radius: 14px;
+  background: #1e293b;
+  color: white;
+  font-size: 15px;
+  font-weight: 600;
+  transition: 0.2s;
+}
+
+.export-btn:hover {
+  background: #334155;
+  transform: translateY(-2px);
 }

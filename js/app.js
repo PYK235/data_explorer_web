@@ -4,6 +4,7 @@ import { applyFilter } from "./controllers/datasetController.js";
 import { renderCompareBoards, renderMetrics } from "./controllers/chartController.js";
 import { bindEvents } from "./controllers/eventBinder.js";
 import { syncControls, updateAlgorithmButtons } from "./controllers/uiController.js";
+import { exportClusteredExcel } from "./services/exportService.js";
 
 function applySnapshotMode() {
   const params = new URLSearchParams(window.location.search);

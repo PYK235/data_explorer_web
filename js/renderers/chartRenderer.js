@@ -12,7 +12,9 @@ function svgNode(tag, attrs = {}) {
 
 function showTooltip(tooltipEl, event, row) {
   if (!tooltipEl) return;
+
   tooltipEl.hidden = false;
+
   tooltipEl.innerHTML = `
     <strong>Khách: ${row.customer ?? `#${row.id}`}</strong>
     <span>Income: ${row.income}</span>
@@ -23,6 +25,7 @@ function showTooltip(tooltipEl, event, row) {
   const bounds = tooltipEl.parentElement.getBoundingClientRect();
   const x = event.clientX - bounds.left + 12;
   const y = event.clientY - bounds.top + 12;
+
   tooltipEl.style.transform = `translate(${x}px, ${y}px)`;
 }
 
@@ -31,11 +34,26 @@ function hideTooltip(tooltipEl) {
   tooltipEl.hidden = true;
 }
 
-export function renderScatter(svg, rows, tooltipEl = null) {
+export function renderScatter(svg, rows, tooltipEl = null, state = null) {
   svgClear(svg);
+
   const axisColor = "rgba(255,255,255,0.28)";
-  svg.append(svgNode("line", { x1: 40, y1: 220, x2: 390, y2: 220, stroke: axisColor }));
-  svg.append(svgNode("line", { x1: 40, y1: 220, x2: 40, y2: 30, stroke: axisColor }));
+
+  svg.append(svgNode("line", {
+    x1: 40,
+    y1: 220,
+    x2: 390,
+    y2: 220,
+    stroke: axisColor
+  }));
+
+  svg.append(svgNode("line", {
+    x1: 40,
+    y1: 220,
+    x2: 40,
+    y2: 30,
+    stroke: axisColor
+  }));
 
   const xLabel = svgNode("text", {
     x: 335,
@@ -43,6 +61,7 @@ export function renderScatter(svg, rows, tooltipEl = null) {
     fill: "#9db1d1",
     "font-size": "12"
   });
+
   xLabel.textContent = "Income";
   svg.append(xLabel);
 
@@ -52,12 +71,14 @@ export function renderScatter(svg, rows, tooltipEl = null) {
     fill: "#9db1d1",
     "font-size": "12"
   });
+
   yLabel.textContent = "Spending";
   svg.append(yLabel);
 
   rows.forEach((row) => {
     const x = 50 + Number(row.income) * 4.1;
     const y = 225 - Number(row.spending) * 1.8;
+
     const circle = svgNode("circle", {
       cx: x,
       cy: y,
@@ -75,10 +96,76 @@ export function renderScatter(svg, rows, tooltipEl = null) {
 
     svg.append(circle);
   });
+
+  if (
+    state &&
+    state.algorithm === "kmeans"
+  ) {
+    const clusterGroups = {};
+
+    rows.forEach((row) => {
+      if (!clusterGroups[row.clusterLabel]) {
+        clusterGroups[row.clusterLabel] = [];
+      }
+
+      clusterGroups[row.clusterLabel].push(row);
+    });
+
+    Object.values(clusterGroups).forEach((group) => {
+      const avgIncome =
+        group.reduce(
+          (sum, row) => sum + Number(row.income),
+          0
+        ) / group.length;
+
+      const avgSpending =
+        group.reduce(
+          (sum, row) => sum + Number(row.spending),
+          0
+        ) / group.length;
+
+      const x = 50 + avgIncome * 4.1;
+      const y = 225 - avgSpending * 1.8;
+
+      const glow = svgNode("circle", {
+        cx: x,
+        cy: y,
+        r: 12,
+        fill: "rgba(255,77,109,0.18)"
+      });
+
+      svg.append(glow);
+
+      const centroidCircle = svgNode("circle", {
+        cx: x,
+        cy: y,
+        r: 9,
+        fill: "#ffffff",
+        stroke: "#ff4d6d",
+        "stroke-width": 4
+      });
+
+      svg.append(centroidCircle);
+
+      const centroidText = svgNode("text", {
+        x,
+        y: y + 4,
+        "text-anchor": "middle",
+        fill: "#ff4d6d",
+        "font-size": "10",
+        "font-weight": "bold"
+      });
+
+      centroidText.textContent = "X";
+
+      svg.append(centroidText);
+    });
+  }
 }
 
 export function renderBars(svg, stats) {
   svgClear(svg);
+
   const max = Math.max(...stats.map((item) => item.percent), 1);
 
   stats.forEach((item, index) => {
@@ -104,6 +191,7 @@ export function renderBars(svg, stats) {
       fill: "#f2f6ff",
       "font-size": "12"
     });
+
     percentLabel.textContent = `${item.percent}%`;
     svg.append(percentLabel);
 
@@ -114,7 +202,12 @@ export function renderBars(svg, stats) {
       fill: "#9db1d1",
       "font-size": "10"
     });
-    nameLabel.textContent = item.name === "Tiềm năng" ? "Tiềm năng" : item.name;
+
+    nameLabel.textContent =
+      item.name === "Tiềm năng"
+        ? "Tiềm năng"
+        : item.name;
+
     svg.append(nameLabel);
   });
 }

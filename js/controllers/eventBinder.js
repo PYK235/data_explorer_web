@@ -6,6 +6,7 @@ import { readCsvFile } from "../services/fileParser.js";
 import { predictCustomer, uploadDatasetToBackend } from "../services/api.js";
 import { buildPredictMessage } from "../services/clusterInsights.js";
 import { syncControls, updateClusterLabel } from "./uiController.js";
+import { exportClusteredExcel } from "../services/exportService.js";
 
 export function bindEvents(state, els, refreshAll) {
   document.querySelectorAll(".nav-link").forEach((button) => {
@@ -183,131 +184,135 @@ export function bindEvents(state, els, refreshAll) {
         "Predict thất bại";
     }
   });
+
+  els.exportExcelBtn.addEventListener("click",() => {exportClusteredExcel(state.clusteredRows);
+    }
+  );
 }
 
 // ================= UI CONTROL =================
-function handleAlgorithmUI(state, els) {
-  syncAlgorithmControls(state);
+// function handleAlgorithmUI(state, els) {
+//   syncAlgorithmControls(state);
 
-  if (state.algorithm === "dbscan") {
-    showDbscanControls(
-      state,
-      async () => {
-        await runAlgorithm(state);
-        renderMetrics(state, els);
-        updateDbscanNoiseCount(state.dbscanNoise);
-      },
-      async () => {
-        await runAlgorithm(state);
-        renderMetrics(state, els);
-        updateDbscanNoiseCount(state.dbscanNoise);
-      }
-    );
-  } else {
-    hideDbscanControls();
-  }
-}
+//   if (state.algorithm === "dbscan") {
+//     showDbscanControls(
+//       state,
+//       async () => {
+//         await runAlgorithm(state);
+//         renderMetrics(state, els);
+//         updateDbscanNoiseCount(state.dbscanNoise);
+//       },
+//       async () => {
+//         await runAlgorithm(state);
+//         renderMetrics(state, els);
+//         updateDbscanNoiseCount(state.dbscanNoise);
+//       }
+//     );
+//   } else {
+//     hideDbscanControls();
+//   }
+// }
 
 // ================= CORE =================
-async function runAlgorithm(state) {
-  if (!state.rows?.length) return;
+// async function runAlgorithm(state) {
+//   if (!state.rows?.length) return;
 
-  console.log("Running:", state.algorithm);
+//   console.log("Running:", state.algorithm);
 
-  if (state.algorithm === "kmeans") {
-    await runKMeans(state);
-  } 
-  else if (state.algorithm === "dbscan") {
-    await runDbscan(state);
-  } 
-  else if (state.algorithm === "hierarchical") {
-    await runHierarchicalAlgo(state);
-  }
-}
+//   if (state.algorithm === "kmeans") {
+//     await runKMeans(state);
+//   } 
+//   else if (state.algorithm === "dbscan") {
+//     await runDbscan(state);
+//   } 
+//   else if (state.algorithm === "hierarchical") {
+//     await runHierarchicalAlgo(state);
+//   }
+// }
 
 // ================= HELPERS =================
-function getNumericPayload(rows) {
-  return rows.map(r => {
-    if (Array.isArray(r)) return [Number(r[0] || 0), Number(r[1] || 0)];
-    return [Number(r.income || 0), Number(r.spending || 0)];
-  });
-}
+// function getNumericPayload(rows) {
+//   return rows.map(r => {
+//     if (Array.isArray(r)) return [Number(r[0] || 0), Number(r[1] || 0)];
+//     return [Number(r.income || 0), Number(r.spending || 0)];
+//   });
+// }
 
 // ================= KMEANS =================
-async function runKMeans(state) {
-  state.points = null;
-  state.hierarchicalDendrogram = null;
-  state.hierarchicalCutThreshold = null;
+// async function runKMeans(state) {
+//   state.points = null;
+//   state.hierarchicalDendrogram = null;
+//   state.hierarchicalCutThreshold = null;
 
-  const res = await fetchClusteringResults({
-    data: state.rows,
-    k: state.clusterK
-  });
+//   const res = await fetchClusteringResults({
+//     data: state.rows,
+//     k: state.clusterK
+//   });
 
-  if (res.ok) {
-    state.labels = res.result.labels;
-    state.centroids = res.result.centroids;
-    state.silhouette = res.result.silhouette;
-    state.davies = res.result.davies_bouldin;
-  }
-}
+//   if (res.ok) {
+//     state.labels = res.result.labels;
+//     state.centroids = res.result.centroids;
+//     state.silhouette = res.result.silhouette;
+//     state.davies = res.result.davies_bouldin;
+//   }
+// }
 
 // ================= DBSCAN =================
-async function runDbscan(state) {
-  state.points = null;
-  state.hierarchicalDendrogram = null;
-  state.hierarchicalCutThreshold = null;
+// async function runDbscan(state) {
+//   state.points = null;
+//   state.hierarchicalDendrogram = null;
+//   state.hierarchicalCutThreshold = null;
 
-  const res = await fetchDbscanResults({
-    data: getNumericPayload(state.rows),
-    eps: state.dbscanEps,
-    min_samples: state.dbscanMinSamples,
-  });
+//   const res = await fetchDbscanResults({
+//     data: getNumericPayload(state.rows),
+//     eps: state.dbscanEps,
+//     min_samples: state.dbscanMinSamples,
+//   });
 
-  if (res.ok) {
-    state.dbscanLabels = res.result.labels;
-    state.dbscanClusters = res.result.n_clusters;
-    state.dbscanNoise = res.result.n_noise;
-    state.dbscanSilhouette = res.result.silhouette;
-    state.dbscanPseudoCentroids = res.result.pseudo_centroids;
+//   if (res.ok) {
+//     state.dbscanLabels = res.result.labels;
+//     state.dbscanClusters = res.result.n_clusters;
+//     state.dbscanNoise = res.result.n_noise;
+//     state.dbscanSilhouette = res.result.silhouette;
+//     state.dbscanPseudoCentroids = res.result.pseudo_centroids;
 
-    // unify
-    state.labels = res.result.labels;
-    state.centroids = res.result.pseudo_centroids;
-  }
-}
+//     // unify
+//     state.labels = res.result.labels;
+//     state.centroids = res.result.pseudo_centroids;
+//   }
+// }
 
 // ================= HIERARCHICAL =================
-async function runHierarchicalAlgo(state) {
-  const rawData = state.filteredRows || state.rows;
+// async function runHierarchicalAlgo(state) {
+//   const rawData = state.filteredRows || state.rows;
 
-  const inputData = rawData.map(row => {
-    if (Array.isArray(row))
-       return row.map(Number);
+//   const inputData = rawData.map(row => {
+//     if (Array.isArray(row))
+//        return row.map(Number);
 
-    return Object.values(row)
-      .filter(v => !isNaN(v))
-      .map(Number);
-  });
+//     return Object.values(row)
+//       .filter(v => !isNaN(v))
+//       .map(Number);
+//   });
 
-  const res = await runHierarchical(
-    inputData,
-    state.dendrogramCut,
-    state.linkage || "ward",
-    state.metric || "euclidean"
-  );
+//   const res = await runHierarchical(
+//     inputData,
+//     state.dendrogramCut,
+//     state.linkage || "ward",
+//     state.metric || "euclidean"
+//   );
 
-  if (res.ok) {
-    state.labels = res.result.labels;
-    state.silhouette = res.result.silhouette;
-    state.davies = res.result.davies_bouldin;
-    state.points = res.result.points;
-    state.hierarchicalClusters = res.result.n_clusters;
-    state.hierarchicalLabels = res.result.labels;
-    state.hierarchicalZMatrix = res.result.z_matrix;
-    state.hierarchicalDendrogram = res.result.dendrogram;
-    state.hierarchicalCutThreshold = res.result.cut_threshold;
-    state.hierarchicalEngine = res.result.engine;
-  }
-}
+//   if (res.ok) {
+//     state.labels = res.result.labels;
+//     state.silhouette = res.result.silhouette;
+//     state.davies = res.result.davies_bouldin;
+//     state.points = res.result.points;
+//     state.hierarchicalClusters = res.result.n_clusters;
+//     state.hierarchicalLabels = res.result.labels;
+//     state.hierarchicalZMatrix = res.result.z_matrix;
+//     state.hierarchicalDendrogram = res.result.dendrogram;
+//     state.hierarchicalCutThreshold = res.result.cut_threshold;
+//     state.hierarchicalEngine = res.result.engine;
+//   }
+// }
 

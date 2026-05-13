@@ -30,5 +30,6 @@ export const els = {
   compareHierarchical: document.getElementById("compareHierarchical"),
   sampleBtn: document.getElementById("sampleBtn"),
   refreshBtn: document.getElementById("refreshBtn"),
-  fileInput: document.getElementById("fileInput")
+  fileInput: document.getElementById("fileInput"),
+  exportExcelBtn: document.getElementById("exportExcelBtn")
 };

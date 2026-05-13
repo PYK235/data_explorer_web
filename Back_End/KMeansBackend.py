@@ -249,12 +249,20 @@ def auto_train_predict_model(
     trained_scaler = scaler
     cluster_groups = groups
 
-    # save
-    # joblib.dump(clf, MODEL_PATH)
-    # joblib.dump(scaler, SCALER_PATH)
-    # joblib.dump(groups, GROUPS_PATH)
+    
+    if not os.path.exists(MODEL_PATH):
 
-    # print("✅ Predict model auto-trained")
+        joblib.dump(clf, MODEL_PATH)
+
+    if not os.path.exists(SCALER_PATH):
+
+        joblib.dump(scaler, SCALER_PATH)
+
+    if not os.path.exists(GROUPS_PATH):
+
+        joblib.dump(groups, GROUPS_PATH)
+
+    print("✅ Predict model auto-trained")
 
 
 # =========================================================
