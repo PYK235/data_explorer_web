@@ -17,6 +17,7 @@ function getClusterCountText(rows, algorithm) {
 
 function getFallbackMetrics(algorithm) {
   const profile = algorithmProfiles[algorithm];
+
   return {
     silhouette: profile.silhouette,
     davies: profile.davies
@@ -25,7 +26,12 @@ function getFallbackMetrics(algorithm) {
 
 export async function renderMetrics(state, els) {
   const profile = algorithmProfiles[state.algorithm];
-  const fallbackRows = attachClusterInsights(state.filteredRows, state.algorithm);
+
+  const fallbackRows = attachClusterInsights(
+    state.filteredRows,
+    state.algorithm
+  );
+
   const apiResult = await fetchClusteringResults({
     algorithm: state.algorithm,
     rows: state.filteredRows,
@@ -33,37 +39,83 @@ export async function renderMetrics(state, els) {
     dendrogramCut: state.dendrogramCut
   });
 
-  const clusteredRows = apiResult.clusteredRows ?? fallbackRows;
-  const stats = apiResult.stats ?? buildDashboardStats(clusteredRows);
-  const clusterMap = apiResult.clusterMap ?? buildClusterNameMap(clusteredRows);
-  const fallbackMetrics = getFallbackMetrics(state.algorithm);
+  const clusteredRows =
+    apiResult.clusteredRows ??
+    fallbackRows;
+
+  const stats =
+    apiResult.stats ??
+    buildDashboardStats(clusteredRows);
+
+  const clusterMap =
+    apiResult.clusterMap ??
+    buildClusterNameMap(clusteredRows);
+
+  const fallbackMetrics =
+    getFallbackMetrics(state.algorithm);
 
   state.clusteredRows = clusteredRows;
-  state.centroids = apiResult.rawResponse?.centroids || [];
+
+  state.centroids =
+    apiResult.rawResponse?.centroids || [];
+
   console.log(
     "CENTROIDS:",
     state.centroids
   );
 
-  state.lastClusterResultSource = apiResult.source;
+  state.lastClusterResultSource =
+    apiResult.source;
 
-  els.scoreSilhouette.textContent = apiResult.silhouette ?? fallbackMetrics.silhouette;
-  els.scoreDavies.textContent = apiResult.davies ?? fallbackMetrics.davies;
-  els.scoreClusters.textContent = getClusterCountText(clusteredRows, state.algorithm);
-  els.scatterTitle.textContent = `${profile.label}${apiResult.source === "api" ? "" : " (demo)"}`;
+  els.scoreSilhouette.textContent =
+    apiResult.silhouette ??
+    fallbackMetrics.silhouette;
 
-  renderScatter(els.scatterPlot, clusteredRows, els.scatterTooltip);
-  renderBars(els.barChart, stats);
-  renderClusterNameList(els.clusterNameList, clusterMap);
-  renderDashboardStats(els.dashboardStats, stats);
-}
+  els.scoreDavies.textContent =
+    apiResult.davies ??
+    fallbackMetrics.davies;
 
-export function renderCompareBoards(state, els) {
-  renderScatter(els.compareKmeans, attachClusterInsights(state.filteredRows, "kmeans"));
-  renderScatter(els.compareDbscan, attachClusterInsights(state.filteredRows, "dbscan"));
-  renderScatter(els.compareHierarchical, attachClusterInsights(state.filteredRows, "hierarchical"));
+  els.scoreClusters.textContent =
+    getClusterCountText(
+      clusteredRows,
+      state.algorithm
+    );
+
+  els.scatterTitle.textContent =
+    `${profile.label}${
+      apiResult.source === "api"
+        ? ""
+        : " (demo)"
+    }`;
+
+  renderScatter(
+    els.scatterPlot,
+    clusteredRows,
+    els.scatterTooltip,
+    state
+  );
+
+  renderBars(
+    els.barChart,
+    stats
+  );
+
+  renderClusterNameList(
+    els.clusterNameList,
+    clusterMap
+  );
+
+  renderDashboardStats(
+    els.dashboardStats,
+    stats
+  );
 }
 
 export function rerenderMainScatter(state, els) {
-  renderScatter(els.scatterPlot, state.clusteredRows, els.scatterTooltip);
+  renderScatter(
+    els.scatterPlot,
+    state.clusteredRows,
+    els.scatterTooltip,
+    state
+  );
 }

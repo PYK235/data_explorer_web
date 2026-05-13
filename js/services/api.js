@@ -71,29 +71,76 @@ function buildRequestPayload(payload) {
 }
 
 function enrichRowsFromApi(rows, response, algorithm) {
-  const labels = getValue(response, ["labels", "cluster_labels"], []);
+
+  const labels =
+    getValue(
+      response,
+      ["labels", "cluster_labels"],
+      []
+    );
+
   const names =
-    getValue(response, ["cluster_names", "clusterNames", "cluster_name_map"], {}) || {};
+    getValue(
+      response,
+      [
+        "cluster_names",
+        "clusterNames",
+        "cluster_name_map"
+      ],
+      {}
+    ) || {};
 
-  return rows.map((row, index) => {
-    const fallback = inferCustomerGroup(row.income, row.spending, algorithm);
-    const label = labels[index] ?? fallback.label;
-    const clusterName =
-      names[label] ??
-      names[String(label)] ??
-      row.clusterName ??
-      fallback.name;
+  const palette = [
+    "#60a5fa",
+    "#2dd4bf",
+    "#fbbf24",
+    "#a78bfa",
+    "#fb7185",
+    "#34d399",
+    "#f472b6",
+    "#38bdf8"
+  ];
 
-    const resolved = inferCustomerGroup(row.income, row.spending, algorithm === "dbscan" && label === -1 ? "dbscan" : algorithm);
+  return rows.map(
+    (row, index) => {
 
-    return {
-      ...row,
-      clusterLabel: label,
-      clusterName,
-      clusterColor: resolved.color,
-      clusterReason: resolved.reason
-    };
-  });
+      const fallback =
+        inferCustomerGroup(
+          row.income,
+          row.spending,
+          algorithm
+        );
+
+      const label =
+        labels[index] ??
+        fallback.label;
+
+      const clusterName =
+        names[label] ??
+        names[String(label)] ??
+        row.clusterName ??
+        fallback.name;
+
+      return {
+        ...row,
+
+        clusterLabel: label,
+
+        clusterName,
+
+        clusterColor:
+          label === -1
+            ? "#fb7185"
+            : palette[
+                Math.abs(label)
+                % palette.length
+              ],
+
+        clusterReason:
+          fallback.reason
+      };
+    }
+  );
 }
 
 function buildFallbackResponse(payload) {
