@@ -117,7 +117,7 @@
                 <label for="dendrogramRange">Mức cắt dendrogram</label>
                 <strong id="dendrogramValue">65%</strong>
               </div>
-              <input id="dendrogramRange" type="range" min="20" max="100" value="65">
+              <input id="dendrogramRange" type="range" min="0" max="100" value="65">
             </div>
 
             <div class="field">
@@ -187,6 +187,14 @@
                   <svg id="scatterPlot" viewBox="0 0 420 260" class="chart-svg"></svg>
                   <div id="scatterTooltip" class="chart-tooltip" hidden></div>
                 </div>
+              </div>
+
+              <div class="chart-card" id="dendrogramCard">
+                <div class="chart-head">
+                  <h4>Dendrogram cắt</h4>
+                  <span id="dendrogramInfo">Cut: 65% • 0 cụm</span>
+                </div>
+                <svg id="dendrogramChart" viewBox="0 0 420 260" class="chart-svg"></svg>
               </div>
 
               <div class="chart-card">

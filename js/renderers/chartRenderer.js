@@ -77,6 +77,134 @@ export function renderScatter(svg, rows, tooltipEl = null) {
   });
 }
 
+const dendrogramColorMap = {
+  C0: "#60a5fa",
+  C1: "#0ea5e9",
+  C2: "#22c55e",
+  C3: "#facc15",
+  C4: "#fb7185",
+  C5: "#a855f7",
+  C6: "#f97316",
+  C7: "#2dd4bf",
+  C8: "#e879f9",
+  C9: "#38bdf8"
+};
+
+function normalizeDendrogramColor(color) {
+  if (!color) return "#60a5fa";
+  if (dendrogramColorMap[color]) return dendrogramColorMap[color];
+  if (/^C\d$/.test(color)) return dendrogramColorMap[color] || "#60a5fa";
+  return color;
+}
+
+export function renderDendrogram(svg, dendrogram, cutThreshold, distanceRange, leafColors = []) {
+  svgClear(svg);
+  const width = 420;
+  const height = 260;
+  const margin = 36;
+
+  if (!dendrogram || !Array.isArray(dendrogram.icoord) || dendrogram.icoord.length === 0) {
+    const message = svgNode("text", {
+      x: width / 2,
+      y: height / 2,
+      fill: "#9db1d1",
+      "font-size": "14",
+      "text-anchor": "middle"
+    });
+    message.textContent = "Chọn Hierarchical để xem dendrogram";
+    svg.append(message);
+    return;
+  }
+
+  const allX = dendrogram.icoord.flat();
+  const allY = dendrogram.dcoord.flat();
+  const minX = Math.min(...allX);
+  const maxX = Math.max(...allX);
+  const minY = 0;
+  const maxY = Math.max(...allY, cutThreshold ?? 0, ...(distanceRange ?? [0, 0]));
+
+  const xScale = (value) => {
+    if (maxX === minX) return width / 2;
+    return margin + ((value - minX) / (maxX - minX)) * (width - margin * 2);
+  };
+
+  const yScale = (value) => {
+    if (maxY === minY) return height - margin;
+    return height - margin - ((value - minY) / (maxY - minY)) * (height - margin * 2);
+  };
+
+  svg.append(svgNode("line", {
+    x1: margin,
+    y1: margin,
+    x2: margin,
+    y2: height - margin,
+    stroke: "rgba(255,255,255,0.16)",
+    "stroke-width": "1"
+  }));
+
+  svg.append(svgNode("line", {
+    x1: margin,
+    y1: height - margin,
+    x2: width - margin,
+    y2: height - margin,
+    stroke: "rgba(255,255,255,0.16)",
+    "stroke-width": "1"
+  }));
+
+  dendrogram.icoord.forEach((xCoords, idx) => {
+    const yCoords = dendrogram.dcoord[idx] || [];
+    const path = xCoords
+      .map((x, index) => `${xScale(x)} ${yScale(yCoords[index] ?? 0)}`)
+      .join(" ");
+    svg.append(svgNode("polyline", {
+      points: path,
+      fill: "none",
+      stroke: normalizeDendrogramColor(dendrogram.color_list?.[idx]),
+      "stroke-width": "2"
+    }));
+  });
+
+  // Vẽ điểm lá để thể hiện cluster theo thứ tự leaves
+  const leafXPositions = [...new Set(allX.filter((x, index) => {
+    return dendrogram.dcoord.some((yCoords) => yCoords[index] === 0);
+  }))].sort((a, b) => a - b);
+
+  leafXPositions.forEach((xValue, i) => {
+    const x = xScale(xValue);
+    const color = leafColors[i] || "#fff";
+    svg.append(svgNode("circle", {
+      cx: x,
+      cy: height - margin + 10,
+      r: 5,
+      fill: color,
+      stroke: "#0f172a",
+      "stroke-width": "1.5"
+    }));
+  });
+
+  if (cutThreshold != null) {
+    const cutY = yScale(cutThreshold);
+    svg.append(svgNode("line", {
+      x1: margin,
+      y1: cutY,
+      x2: width - margin,
+      y2: cutY,
+      stroke: "#f97316",
+      "stroke-width": "2",
+      "stroke-dasharray": "8 6"
+    }));
+  }
+
+  const title = svgNode("text", {
+    x: margin,
+    y: margin - 10,
+    fill: "#9db1d1",
+    "font-size": "12"
+  });
+  title.textContent = "Dendrogram";
+  svg.append(title);
+}
+
 export function renderBars(svg, stats) {
   svgClear(svg);
   const max = Math.max(...stats.map((item) => item.percent), 1);

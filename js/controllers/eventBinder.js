@@ -68,6 +68,10 @@ export function bindEvents(state, els, refreshAll) {
     updateClusterLabel(state, els);
   });
 
+  els.dendrogramRange.addEventListener("change", async (event) => {
+    await refreshAll();
+  });
+
   els.filterSelect.addEventListener("change", async (event) => {
     state.filter = event.target.value;
     await refreshAll();

@@ -1,7 +1,7 @@
 import { algorithmProfiles } from "../data/mockData.js";
 import { buildClusterNameMap, buildDashboardStats, attachClusterInsights } from "../services/clusterInsights.js";
 import { fetchClusteringResults } from "../services/api.js";
-import { renderBars, renderClusterNameList, renderDashboardStats, renderScatter } from "../renderers/chartRenderer.js";
+import { renderBars, renderClusterNameList, renderDashboardStats, renderScatter, renderDendrogram } from "../renderers/chartRenderer.js";
 
 function getClusterCountText(rows, algorithm) {
   const labels = new Set(rows.map((row) => row.clusterLabel));
@@ -50,6 +50,34 @@ export async function renderMetrics(state, els) {
   renderBars(els.barChart, stats);
   renderClusterNameList(els.clusterNameList, clusterMap);
   renderDashboardStats(els.dashboardStats, stats);
+
+  if (els.dendrogramCard) {
+    els.dendrogramCard.style.display = state.algorithm === "hierarchical" ? "block" : "none";
+  }
+
+  if (els.dendrogramInfo) {
+    els.dendrogramInfo.textContent =
+      state.algorithm === "hierarchical"
+        ? `Cut: ${state.dendrogramCut}% • ${apiResult.n_clusters ?? "?"} cụm`
+        : "";
+  }
+
+  const leafColors =
+    state.algorithm === "hierarchical" && apiResult.dendrogram?.leaves
+      ? apiResult.dendrogram.leaves.map((index) => {
+          const leaf = clusteredRows[index];
+          const cluster = clusterMap.find((item) => item.label === leaf?.clusterLabel);
+          return cluster?.color || "#ffffff";
+        })
+      : [];
+
+  renderDendrogram(
+    els.dendrogramChart,
+    state.algorithm === "hierarchical" ? apiResult.dendrogram : null,
+    state.algorithm === "hierarchical" ? apiResult.cut_threshold : null,
+    state.algorithm === "hierarchical" ? apiResult.distance_range : null,
+    leafColors
+  );
 }
 
 export function renderCompareBoards(state, els) {
