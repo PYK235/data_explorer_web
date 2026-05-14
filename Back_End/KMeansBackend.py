@@ -56,14 +56,14 @@ def load_saved_model():
             loaded = True
 
         if loaded:
-            print("✅ Saved KMeans model loaded")
+            print(" Saved KMeans model loaded")
         else:
-            print("⚠️ No saved model found")
+            print(" No saved model found")
 
     except Exception as e:
 
         print(
-            "❌ Failed loading saved model:",
+            "    Failed loading saved model:",
             e
         )
 
@@ -73,21 +73,69 @@ load_saved_model()
 # =========================================================
 # HELPERS
 # =========================================================
-def infer_cluster_name(center):
+def build_cluster_profiles(
+    centroids
+):
 
-    income = float(center[0])
-    spending = float(center[1])
+    profiles = {}
 
-    if income >= 60 and spending >= 60:
-        return "VIP"
+    income_values = [
+        center[0]
+        for center in centroids
+    ]
 
-    if income >= 55 and spending < 60:
-        return "Tiềm năng"
+    spending_values = [
+        center[1]
+        for center in centroids
+    ]
 
-    if income <= 40 and spending <= 40:
-        return "Tiết kiệm"
+    avg_income = np.mean(
+        income_values
+    )
 
-    return "Bình thường"
+    avg_spending = np.mean(
+        spending_values
+    )
+
+    for i, center in enumerate(
+        centroids
+    ):
+
+        income = float(center[0])
+
+        spending = float(center[1])
+
+        if (
+            income >= avg_income
+            and
+            spending >= avg_spending
+        ):
+
+            name = "VIP"
+
+        elif (
+            income >= avg_income
+            and
+            spending < avg_spending
+        ):
+
+            name = "Tiềm năng"
+
+        elif (
+            income < avg_income
+            and
+            spending < avg_spending
+        ):
+
+            name = "Tiết kiệm"
+
+        else:
+
+            name = "Bình thường"
+
+        profiles[str(i)] = name
+
+    return profiles
 
 
 def normalize_input_data(data):
@@ -204,19 +252,6 @@ def build_cluster_counts(labels):
     }
 
 
-def build_cluster_names(centroids):
-
-    cluster_names = {}
-
-    for i, center in enumerate(centroids):
-
-        cluster_names[str(i)] = infer_cluster_name(
-            center
-        )
-
-    return cluster_names
-
-
 # =========================================================
 # AUTO TRAIN MODEL
 # =========================================================
@@ -239,11 +274,11 @@ def auto_train_predict_model(
 
     groups = {}
 
-    for i, center in enumerate(centroids):
+    dynamic_groups = build_cluster_profiles(centroids)
 
-        groups[int(i)] = infer_cluster_name(
-            center
-        )
+    for i in range(len(centroids)):
+
+        groups[int(i)] = dynamic_groups[str(i)]
 
     trained_model = clf
     trained_scaler = scaler
@@ -420,7 +455,7 @@ def run_kmeans():
             labels
         )
 
-        cluster_names = build_cluster_names(
+        cluster_names = build_cluster_profiles(
             centroids
         )
 
